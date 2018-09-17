@@ -1,0 +1,11 @@
+    #map {
+        fill: #0000FF;
+    }
+    .country {
+        fill: #00FF00;
+        stroke: #2A2C39;
+        stroke-width: 1;
+    }
+
+    .tooltip {
+        background-color: #FFFF00;
