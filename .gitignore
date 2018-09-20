@@ -36,5 +36,6 @@
 ehthumbs.db
 Thumbs.db
 
-# My QGIS files
+# My files
 data/medium_scale_cultural_countries/
+jsconfig.json

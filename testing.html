@@ -1,18 +1,59 @@
 <!DOCTYPE html>
-<head>
-    <meta charset="utf-8"/>
-    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.1.3/css/bootstrap.min.css" "eventPositionner.css" integrity="sha384-MCw98/SFnGE8fJT3GXwEOngsV7Zt27NXFoaoApmYm81iuXoPkFOJwJ8ERdknLPMO" crossorigin="anonymous">
-    <link rel="stylesheet" href="./eventPositionner.css">
-    
-    <title>eventPositionner</title>
-</head>
+<html lang="en">
+    <head>
+        <meta charset="utf-8">
+        <meta http-equiv="X-UA-Compatible" content="IE=edge">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <title>eventPositionner</title>
+        <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.1.3/css/bootstrap.min.css" integrity="sha384-MCw98/SFnGE8fJT3GXwEOngsV7Zt27NXFoaoApmYm81iuXoPkFOJwJ8ERdknLPMO" crossorigin="anonymous">
+        <link rel="stylesheet" href="https://unpkg.com/leaflet@1.3.4/dist/leaflet.css"
+   integrity="sha512-puBpdR0798OZvTTbP4A8Ix/l+A4dHDD0DGqYW6RQ+9jxkRFclaxxQb/SJAWZfWAkuyeQUytO7+7N4QKrDh+drA=="
+   crossorigin=""/>
+        <link rel="stylesheet" href="./eventPositionner.css">
+    </head>
 
-<body>
-    <h1 class="text-success text-lg"><a href="#" title="eventPositionner">Zone de test</a></h1>
-    <!-- TODO: get a fallback for these CDNs  -->
-    <script src="https://d3js.org/d3.v5.min.js"></script>
-    <script src="https://code.jquery.com/jquery-3.3.1.slim.min.js" integrity="sha384-q8i/X+965DzO0rT7abK41JStQIAqVgRVzpbzo5smXKp4YfRvH+8abtTE1Pi6jizo" crossorigin="anonymous"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.3/umd/popper.min.js" integrity="sha384-ZMP7rVo3mIykV+2+9J3UJ46jBk0WLaUAdn689aCwoqbBJiSnjAK/l8WvCWPIPm49" crossorigin="anonymous"></script>
-    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.1.3/js/bootstrap.min.js" integrity="sha384-ChfqqxuZUCnJSK3+MXmPNIyE6ZbWh2IMqE241rYiqJxyMiZ6OW/JmZQ5stwEULTy" crossorigin="anonymous"></script>
-    <script src = "./eventPositionner.js"></script>
-</body>
+    <body>
+        <div class = "container"></body>
+            <header class = "page-header">
+                <h1>Positionneur d'évènement</h1>
+            </header>
+            <div class = "row">
+                    <div class="col-md-12" align="center">
+                        <p>Ce programme écrit en d3.js vous permet de charger des données de longitude et latitude en .csv ou en .tsv et de visualiser avec une échelle de couleur les régions du monde où les éléments se situent. Vous pouvez également cliquer sur la crte pour visualiser rapidement le type d'évènement que vous souhaitez, comme par exemple les régions du monde ou vous êtes partis en vacances!</p>
+                    </div>
+            </div>
+            <div class="row">
+                <div class = "col-md-3">
+                    <form class="well">
+                        <fieldset>
+                            <legend> Entrée de vos données</legend>
+                            <div class="form-group">
+                                <label for="dataInput">Vos données peuvent être au format .csv ou .tsv</label>
+                                <label class="btn btn-info">Parcourir<input id="dataInput" type="file" name="dataFile" accept="text/csv, .csv" hidden></label>
+                            </div>
+                            <div>
+                                <label for="colorPlagesInput">Combien de plages de couleurs voulez-vous?</label>
+                                <input id="colorPlagesInput" type="text" name="colorPlages" value="4"/>
+                            </div>
+                        </fieldset>
+                    </form>
+                    </div>
+                <div class = "col-md-6 map-parent"></div>
+                <div class = "col-md-3">
+                    <table class="table table-bordered table-striped">
+
+                    </table>
+                </div>
+            </div>
+        </div>
+        <!-- TODO: get a fallback for these CDNs  -->
+        <script src="https://d3js.org/d3.v5.min.js"></script>
+        <script src="https://code.jquery.com/jquery-3.3.1.slim.min.js" integrity="sha384-q8i/X+965DzO0rT7abK41JStQIAqVgRVzpbzo5smXKp4YfRvH+8abtTE1Pi6jizo" crossorigin="anonymous"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.3/umd/popper.min.js" integrity="sha384-ZMP7rVo3mIykV+2+9J3UJ46jBk0WLaUAdn689aCwoqbBJiSnjAK/l8WvCWPIPm49" crossorigin="anonymous"></script>
+        <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.1.3/js/bootstrap.min.js" integrity="sha384-ChfqqxuZUCnJSK3+MXmPNIyE6ZbWh2IMqE241rYiqJxyMiZ6OW/JmZQ5stwEULTy" crossorigin="anonymous"></script>
+        <script src="https://unpkg.com/leaflet@1.3.4/dist/leaflet.js"
+   integrity="sha512-nMMmRyTVoLYqjP9hrbed9S+FzjZHW5gY1TWCHA5ckwXZBadntCNs8kEqAWdrb9O7rxbCaA4lKTIWjDXZxflOcA=="
+   crossorigin=""></script>
+        <script src = "./eventPositionner.js"></script>
+    </body>
+</html>

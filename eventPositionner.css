@@ -1,6 +1,18 @@
-    #map {
-        fill: #0000FF;
+    svg{
+        max-width: 100%;
+        min-width: 100%;
+        max-height: 100%;
+        min-height: 100%;
     }
+    
+    .background {
+        fill: #4444FF;
+        max-width: 100%;
+        min-width: 100%;
+        max-height: 100%;
+        min-height: 100%;
+    }
+
     .country {
         fill: #00FF00;
         stroke: #2A2C39;
@@ -8,4 +20,6 @@
     }
 
     .tooltip {
+        fill: #FFFF00;
         background-color: #FFFF00;
+    }
