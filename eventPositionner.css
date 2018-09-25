@@ -16,10 +16,47 @@
     .sov {
         fill: #00FF00;
         stroke: #2A2C39;
-        stroke-width: 1;
+        stroke-width: 0.3;
     }
 
     .tooltip {
         fill: #FFFF00;
+        background-color: #FFFF00;
+    }
+	
+	.table td {
+		text-align: center;
+		vertical-align: middle;
+    }
+
+    #red, #green, #blue {
+        float: left;
+        clear: left;
+        width: 100%;
+        margin: 15px;
+      }
+    
+    #red {
+        background: linear-gradient(to right, rgb(1,0,0),rgb(255,0,0))
+    }
+
+    #green {
+        background: linear-gradient(to right, rgb(0,1,0),rgb(0,255,0))
+    }
+
+    #blue {
+        background: linear-gradient(to right, rgb(0,0,1),rgb(0,0,255))
+    }
+
+    .ui-slider-handle{
+        border-color: black
+    }
+
+    #sovColor{
+        height: 25;
+        width: 25
+    }
+
+    .legend{
         background-color: #FFFF00;
     }

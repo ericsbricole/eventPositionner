@@ -1,11 +1,14 @@
 $(document).ready(initiatePage);
 
 function initiatePage(){
+	
 //TODO: get these data from a configuration file
 var geoJson = "data/medium_scale_cultural_countries.geojson";
 var resultat = d3.json(geoJson)
     .then(function(parsedJson) {
 	    drawMap(parsedJson);
+		initiateColors();
+		drawLegend();
 	})
     .catch(function(error) {
 	    alert("erreur!!!!\n" + error);
@@ -15,10 +18,38 @@ var resultat = d3.json(geoJson)
 		var domFileObject = $("#dataInput").get(0).files[0];
 		var fileName = domFileObject.name;
 		var fileExtension = fileName.substring(fileName.lastIndexOf('.')+1, fileName.length);
-		if (fileExtension !== "cv"){
+		if (fileExtension !== "csv"){
 			alert("please enter a csv file.");
 		}
 	});
+
+	
+	function initiateColors(){
+		$("#red, #green, #blue").slider({
+			range: "true",
+			min: 1,
+			max: 255,
+			value: 1
+		});
+		$("#green").slider("option","value",255);
+	}
+
+	function drawLegend(){
+		var legendData = [1,25,50,75];
+		var g = d3.select("g");
+		var legend =g.selectAll(".legend")
+						.data(legendData)
+						.enter()
+						.append("rect")
+						.attr("class", "legend")
+						.attr("transform", function(d,i){
+							return "translate("+d+","+20+")";
+						})
+						.attr("width",20)
+						.attr("height",20);
+
+	}
+	
 };
 
 function drawMap(parsedJson){
@@ -102,40 +133,99 @@ function drawMap(parsedJson){
 		.attr("opacity", 1);
 	})
 
-	var clickedSov;
-	var clickedName;
-	var table = $(".table");
-	countries.on("click",function(d,i,li){
-		clickedSov = d.properties.SOVEREIGNT;
-		clickedName = d.properties.NAME
-		if (table.children().length === 0){
-			var thSov = "<th>Souveraineté:</th>";
-			var thName = "<th>Nom:</th>";
-			var thNumber = "<th>Nombre:</th>";
-			table.append("<thead><tr>" + thSov + thName + thNumber +"</tr></thead><tbody id='tableBody'></tbody>");
-		}
-		if ($("td[data-name='"+clickedName+"']").length <1){
-			var tdSov = "<td data-sov='"+clickedSov+"' data-name='"+clickedName+"'>"+clickedSov+"</td>";
-			var tdName = "<td data-sov='"+clickedSov+"' data-name='"+clickedName+"'>"+clickedName+"</td>";
-			var tdSovNumber ="<td data-sov='"+clickedSov+"' data-name='"+clickedName+"'>"+1+"</td>" 
-			$("#tableBody").append("<tr>"+tdSov+tdName+tdSovNumber+"</tr>");			
-		}
-		else{
-			var currentValue = parseInt($("td[data-name="+clickedName+"]").last().text());
-			$("td[data-name="+clickedName+"]").last().text(currentValue+=1);
-		}
-		//after updating the table of counters, we update colorations as well
-		mapColoration();
+	var oStats = {};
+	countries.on("click",function(d){
+		oStats = updateClickHistory(d, oStats);
+		constructTable(d,oStats);
+		colorTable(d,oStats);
 	});
 
 	var countersObject = {};
-	function mapColoration(){
-		//TODO:check the right way to get its value. Unsure it is this way.
-		var colorPlages =  Number($("#colorPlagesInput").val());
-		//I chose to put the counters on a custom object to make it populable both by a .csv or by looking at the table, according to the user's choice.
-		var counters = $("[id*=Counter]");
-		counters.each(function(k,v){
-			countersObject[v.id.split("Counter")[0]] = v.innerHTML;
-		});
+	function constructTable(d, oStats) {
+		//we destroy the previous table before recreating a new one
+		$("tr:not(tr:first-child),td").remove();
+		var isFirstClick;
+		var sov = Object.keys(oStats);
+		isFirstClick = (sov.length === 1 && oStats[sov]["sovTotal"] === 1 ? true : false);
+		if (isFirstClick) {
+			var thSov = "<th>Souveraineté:</th>";
+			var thName = "<th>Nom:</th>";
+			var thNumber = "<th>Nombre:</th>";
+			$("table").append("<thead><tr>" + thSov + thName + thNumber + "</tr></thead><tbody></tbody>");
+		}
+		//sorting sovTotals
+		var sovTotalsOrdered = [];
+		for (var sov in oStats){
+			sovTotalsOrdered.push(oStats[sov]["sovTotal"]);
+		}
+		//TODO: Currently, when several names of same sov catches up another sov, it is not stable if it is written before or after this other one. 
+		//So, it may be useful to set a rule for which one should be written first in evenly cases.
+		sovTotalsOrdered.sort();
+		//sorting sov:
+		var sovOrdered = Object.keys(oStats);
+		sovOrdered.sort(function(a,b){
+			return oStats[b]["sovTotal"]-oStats[a]["sovTotal"];
+		})
+		
+		var nameSorted;
+		for (var i=0; i<sovOrdered.length; i++){
+			nameSorted = Object.keys(oStats[sovOrdered[i]]);
+			nameSorted.splice(nameSorted.indexOf("sovTotal"),1)
+			nameSorted.sort(function(a,b){
+				return oStats[sovOrdered[i]][b] - oStats[sovOrdered[i]][a];
+			});
+			var isSovSpanned = false;
+			for (var j=0; j<nameSorted.length; j++){
+				if (nameSorted.length > 1 && j===0){
+					var tdSov = constructTableTag("td",sovOrdered[i],nameSorted[j], sovOrdered[i], nameSorted.length);
+					var tdSovTotal = constructTableTag("td", sovOrdered[i],nameSorted[j], oStats[sovOrdered[i]]["sovTotal"], nameSorted.length);
+					isSovSpanned = true;
+				}
+				else if (!isSovSpanned){
+					var tdSov = constructTableTag("td",sovOrdered[i],nameSorted[j], sovOrdered[i]);
+					var tdSovTotal ="";
+				}
+				else if (isSovSpanned){
+					var tdSov = "";
+					var tdSovTotal ="";
+				}
+				var tdName = constructTableTag("td",sovOrdered[i],nameSorted[j], nameSorted[j]);
+				var tdNameCounter = constructTableTag("td",sovOrdered[i],nameSorted[j], oStats[sovOrdered[i]][nameSorted[j]]);
+				$("table").append("<tr>"+tdSov+tdName+tdNameCounter+tdSovTotal+"</tr>");
+			}
+		}
+	}
+
+	function updateClickHistory(d, oStats){
+		var sov = d.properties.SOVEREIGNT;
+		var name = d.properties.NAME;
+			if (sov in oStats === false){
+				var o = {};
+				o[name] = 1;
+				o["sovTotal"] = 0; //incremented at the end of the function
+				oStats[sov] = o
+			}
+			else if (name in oStats[sov]){
+				oStats[sov][name] += 1;
+			}
+			else
+				oStats[sov][name] = 1;
+			oStats[sov]["sovTotal"] += 1;
+		//oStats has all the infos to construct the table.
+		return oStats;
+	}
+			
+
+	function constructTableTag(tagType, clickedSov,clickedName, content, optionRowSpan){
+		if (optionRowSpan)
+			return "<"+tagType+" data-sov='" + clickedSov + "' data-name='" + clickedName + "' rowspan='"+optionRowSpan+"'>" + content + "</"+tagType+">";
+		else
+			return "<"+tagType+" data-sov='" + clickedSov + "' data-name='" + clickedName + "'>" + content + "</"+tagType+">";
+			
+	}
+
+	function colorTable(d,oStats){
+		//TODO: get this value with a submit button
+		var iColorPlages = $("#colorPlagesInput").val();
 	}
 }
