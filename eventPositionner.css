@@ -57,6 +57,23 @@
         width: 25
     }
 
-    .legend{
-        background-color: #FFFF00;
+    .legendRect0{
+        fill: rgb(255,0,0);
+    }
+
+    .legendRect1{
+        fill: rgb(255,30,0);
+    }
+
+    .legendRect2{
+        fill: rgb(210,70,0);
+    }
+
+    .legendRect3{
+        fill: rgb(220,220,0);
+    }
+
+    .active{
+        stroke: #2A2C39;
+        stroke-width: 1;
     }

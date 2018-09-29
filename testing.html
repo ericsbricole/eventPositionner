@@ -26,27 +26,34 @@
                 <div class = "col-md-3">
                     <form class="well">
                         <fieldset>
-                            <legend> Entrée de vos données</legend>
-                            <div class="form-group">
-                                <label for="dataInput">Vos données peuvent être au format .csv ou .tsv</label>
-                                <label class="btn btn-info">Parcourir<input id="dataInput" type="file" name="dataFile" accept="text/csv, .csv" hidden></label>
-                            </div>
+                            <legend> Personnalisation de la carte</legend>
                             <div>
                                     <p>Utilisez les niveaux de rouge, vert et bleu ci-dessous pour déterminer les couleurs.</p>
                                     <div id="red"></div>
                                     <div id="green"></div>
                                     <div id="blue"></div>
-                                <label for="colorPlagesInput">En combien de plages de couleurs voulez-vous diviser vos évenements?</label>
-                                <input id="colorPlagesInput" type="text" name="colorPlages" value="4"/>
+                                    <!-- TODO: expliquer par une alert ou une fenetre modale qu'ils doivent cliquer des pays pour en avoir! -->
+                                <label for="colorPlagesInput">Combien de carrés de légendes pour diviser vos évènements? La légende sera automatiquement déterminée par la médiane et les interquartiles de vos données. Notez que vous ne pouvez avoir plus de carrés que de pays différents sélectionnés. Ceci est actuellement limité à 4.</label>
+                                <input id="colorPlagesInput" type="number" name="colorPlages" min="0" max="0" value="0"/>
                                 <div id="test"></div>
-                                <label for="colorSov">Couleur des autres pays</label>
-                                <input id="colorSov" type="range"/>
+                                <label for="legendTextDir">Positionner le texte des légendes (dans la limite de l'espace disponible):</label>
+                                <div id="legendTextDir">
+                                    <input type="radio" name="legendTextDir" value="right" checked="checked"> A droite
+                                    <input type="radio" name="legendTextDir" value="left"> A gauche
+                                </div>
+                                <label for="horizontal">Repositionner automatiquement les légendes:</label>
+                                <div id="horizontal">
+                                    <input type="radio" name="horizontal" value="right" checked="checked"> A droite
+                                    <input type="radio" name="horizontal" value="left"> A gauche
+                                </div>
                             </div>
                         </fieldset>
                     </form>
                     </div>
                 <div class = "col-md-6 map-parent"></div>
                 <div class = "col-md-3">
+                    <h2>Tableau de vos données</h2>
+                    <p id="noTable">Cliquez sur la carte pour générer le tableau.</p>
                     <table class="table table-bordered table-striped">
 
                     </table>

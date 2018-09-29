@@ -11,19 +11,7 @@ function initiatePage(){
 	    })
 	.catch(function(error) {
 		alert("erreur!!!!\n" + error);
-	    });
-    
-    $("#dataInput").on("change",function(){
-	    var domFileObject = $("#dataInput").get(0).files[0];
-	    var fileName = domFileObject.name;
-	    var fileExtension = fileName.substring(fileName.lastIndexOf('.')+1, fileName.length);
-	    if (fileExtension !== "csv"){
-		alert("please enter a csv file.");
-	    }
-	});
-    
-    
-    
+	    }); 
     
 };
 
@@ -56,7 +44,6 @@ function drawMap(parsedJson){
 	.attr("width", "100%")
 	.attr("height", "100%")
 	.on("click",function(){
-		console.log("on va bind à " + this.getAttribute("class"));
 		initiateOrBindSliderColors(this.getAttribute("class"));
 	});
     
@@ -116,14 +103,19 @@ function drawMap(parsedJson){
     countries.on("click",function(d){
 	    oStats = updateClickHistory(d, oStats);
 	    constructTable(d,oStats);
+		limitColorPlagesInput(oStats);
+		//colorSovs(oStats) may change the country class and thus bind SliderColors to the new one.
+		colorSovs(oStats);
 		initiateOrBindSliderColors(this.getAttribute("class"));
 	});
     
-    drawLegend();
+	drawLegend(oStats);
+	bindDomListeners(oStats);
     initiateOrBindSliderColors("sov");
     
     function constructTable(d, oStats) {
-	//we destroy the previous table before recreating a new one
+		if ($('p#noTable')) $('p#noTable').remove();
+	//Destroy the previous table before recreating a new one
 	$("tr:not(tr:first-child),td").remove();
 	var isFirstClick;
 	var sov = Object.keys(oStats);
@@ -210,10 +202,12 @@ function drawMap(parsedJson){
     }
     
     function initiateOrBindSliderColors(classElementToBind){
-		var oCurrentColor = getRGB($("."+classElementToBind).css("fill"));
-		console.log("slider bind to " +classElementToBind + " actuellement de couleur rgb:" + oCurrentColor["red"] + "," + oCurrentColor["green"] +","+ oCurrentColor["blue"]   );
+		//I had problems when an element with several classes bound to colors. Thus the last class is prioritized over the previouses for binding.
+		classElementToBind = classElementToBind.split(" ");
+		classElementToBind = classElementToBind[classElementToBind.length-1];
+		var oCurrentColor = getRGB($("."+classElementToBind.replace(" ", ",")).css("fill"));
 		var sliders = $("#red, #green, #blue");
-		if ($(".ui-slider").length>0)//we have to reinitiate sliders by destroying previous listeners
+		if ($(".ui-slider").length>0)//Reinitiate sliders by destroying previous listeners
 		{
 			sliders.off( "slide");
 		}
@@ -222,7 +216,7 @@ function drawMap(parsedJson){
 				min: 1,
 				max: 255,
 				});
-		//each time we click onto the map, the sliders remind the actual value of newly bind element
+		//each time the user click onto the map, the sliders remind the actual value of newly bind element
 		$("#red").slider("option","value",oCurrentColor["red"]);
 		$("#green").slider("option","value",oCurrentColor["green"]);
 		$("#blue").slider("option","value",oCurrentColor["blue"]);
@@ -231,40 +225,183 @@ function drawMap(parsedJson){
 			var newGreen = $( "#green" ).slider( "value" );
 			var newBlue = $( "#blue" ).slider( "value" );
 			var newColor = "rgb("+newRed+","+newGreen+","+newBlue+")";
-			$("."+classElementToBind).css("fill", newColor);
+			//again, I cannot afford several classes to be bound. The last one is used.
+			$("[class$='"+classElementToBind+"']").css("fill", newColor);
 		} )
 	}
-    
-    function drawLegend(){
-	var oConfig = getConfig();
-	var legendData = [];//[x,y] of each legend rect
-	var x;
+	
+	function limitColorPlagesInput(oStats){
+		sovs = Object.keys(oStats);
+		//get unique values
+		var uniqueSovs = sovs.filter(function (x, i, ar) { 
+			return ar.indexOf(x) == i; 
+		});
+		uniqueSovs.length < 4 ?
+		$("input#colorPlagesInput").attr("max",uniqueSovs.length)
+		:$("input#colorPlagesInput").attr("max",4);
+	}
+	
+	function colorSovs(oStats){
+		var iLegends = getConfig()["iColorPlages"];
+		if (iLegends){
+
+			var sovs = Object.keys(oStats);
+			for (var i=0; i<sovs.length; i++){
+				oStats[sovs[i]]
+			}
+			var distribution = getMedianAndQuartiles(oStats);
+			var max = distribution[0];
+			var quartileSup = distribution[1];
+			var median = distribution[2];
+			var quartileInf = distribution[3];
+			var min = distribution[4];
+			console.log("max = " + max+" quartileSup = " + quartileSup+' median = ' + median +' quartileInf = '+quartileInf +" min = " + min);
+			
+			switch (iLegends){
+				case 1:
+				$('.legendText0').text("Max: " + max);
+				var sovToColor = [];
+				var sovToDecolor = [];
+				Object.keys(oStats).forEach(function(sov){
+					if (oStats[sov]["sovTotal"] === max){
+						sovToColor.push(sov);
+					}
+					else{
+						sovToDecolor.push(sov);
+					}
+					sovToDecolor.forEach(function(sov){
+						$("path[id^='sov"+sov+"']").css("fill",$(".sov").css("fill"));
+						$("path[id^='sov"+sov+"']").removeClass("legendRect0");
+					});
+						sovToColor.forEach(function(sov){
+							$("path[id^='sov"+sov+"']").css("fill",$(".legendRect0").css("fill"));
+							$("path[id^='sov"+sov+"']").addClass("legendRect0");
+							initiateOrBindSliderColors("legendRect0");
+						});
+				})
+				
+				default:
+				$("g.legend").each(function(i,v){
+					positionTextLegend(v);
+					sovToColor
+				});
+			}
+			
+		}
+	}
+		
+		function drawLegend(oStats){
+			var oConfig = getConfig();
+			var width = oConfig["width"];
+			var height = oConfig["height"];
+	var spacing = oConfig["spacing"];//to separate g legends (1 g = 1 rect + 1 text)
+	var legendSpacing = oConfig["legendSpacing"];//to separate legend texts from their rect
+	var legendData = [];//[[x,y],...] of each legend rect
 	var y = 0;
 	if (oConfig["horizontal"] === "left"){
-	    x = 0;
+	    var x = 0;
 	}
 	else{
-	    x = $("#map").width() - oConfig["width"];
+	    var x = $("#map").width() - width;
 	}
 	for (var i=0;i<oConfig["iColorPlages"];i++){
 	    var coord = [x,y];
 	    legendData.push(coord);
-	    y += oConfig["spacing"];
+	    y += spacing;
 	}
 	var svg = d3.select("svg");
+	svg.selectAll(".legend").remove();//before drawing a new legend, remove the previous one
 	var legend = svg.selectAll(".legend")
-	    .data(legendData)
+		.data(legendData)
 	    .enter()
-	    .append("rect")
-	    .attr("class", (d,i)=>"legend legend"+i)
+		.append("g")
+		.attr("class", (d,i)=>"legend legend"+i)
 	    .attr("transform", function(d){
 		    return "translate("+d[0]+","+d[1]+")";
 		})
-	    .attr("width",oConfig["width"])
-		.attr("height",oConfig["height"])
+		.call(d3.drag()
+        	.on("start", dragstarted)
+        	.on("drag", dragged)
+        	.on("end", dragended));
+		var legendRect = legend.append("rect")
+	    .attr("width",width)
+		.attr("height",height)
+		.attr("class", (d,i)=>"legend" + i +" legendRect"+i)
 		.on("click", function(){
-			initiateOrBindSliderColors(this.getAttribute("class").replace(" ","."));
+			initiateOrBindSliderColors(this.getAttribute("class"));
+		});
+		legend.append("text")
+		.text("TODO: adapt the legend here")
+		.attr("class", (d,i)=>"legend" + i +" legendText"+i)
+		.attr("x",function(){
+			if (getConfig()["horizontal"] ==="right"){
+				var legendWidth=this.getBBox().width;
+				return -legendWidth-legendSpacing;
+			}
+			return width + legendSpacing;
 		})
+		.attr("y",height-5);
+	}
+
+	function positionTextLegend(gLegendNode){
+		var oConfig = getConfig()
+		var legendSpacing = oConfig["legendSpacing"];
+		var sLegendTextDir = oConfig['sLegendTextDir'];
+		var rectWidth = oConfig['width'];
+		var mapWidth = $("#map").width();
+		var legendText = d3.select(gLegendNode).select("text")
+		var textLegendNode = gLegendNode.children[1];
+		var legendWidth=textLegendNode.getBBox().width;
+		//I used to get x with d3.event.x but I also have to reposition legend text from radio button, thus the 3 following lines.
+		var currentTransform = gLegendNode.getAttribute("transform").split(",");
+		var currentX = parseInt(currentTransform[0].split('(')[1]);
+		//var currentY = currentTransform[1].split(')')[0];//TODO: use it to offer to reposition the text in up and down positions
+		var isTooCloseFromLeft = (currentX - legendWidth - legendSpacing)<0;
+		var isTooCloseFromRight = (currentX + legendWidth + rectWidth + legendSpacing)>mapWidth;
+		if (isTooCloseFromLeft){
+			legendText.attr("x",rectWidth + legendSpacing);
+		}
+		else if(isTooCloseFromRight){
+			legendText.attr("x",-legendWidth-legendSpacing);
+		}
+		else{
+			sLegendTextDir==="right"?
+			legendText.attr("x",rectWidth +legendSpacing)
+			: legendText.attr("x",-legendWidth-legendSpacing);
+		}
+	}
+
+	function dragstarted(d) {
+		d3.select(this).raise().classed("active", true);
+	  }
+	  
+	  function dragged(d) {
+		  positionTextLegend(this);
+		  d3.select(this).attr("transform","translate("+d3.event.x+","+d3.event.y+")");
+	  }
+	  
+	  function dragended(d) {
+		d3.select(this).classed("active", false);
+	  }
+
+	function bindDomListeners(oStats){
+		var iColors = $("#colorPlagesInput");
+		iColors.change(function(){
+			var distriValues = getMedianAndQuartiles(oStats);
+			var max = distriValues[0];
+			var quartileSup = distriValues[1];
+			var median = distriValues[2];
+			var quartileInf = distriValues[3];
+			var min = distriValues[4];
+			drawLegend(oStats);
+		})
+		var inputLegendTextDirs = $("input[name='legendTextDir']")
+								.change(function(){
+									$("g.legend").each(function(i,v){
+										positionTextLegend(v);
+									});
+								});
+
 	}
 	
 	function getRGB(str){
@@ -275,14 +412,86 @@ function drawMap(parsedJson){
 		  blue: match[3]
 		} : {};
 	  }
+
+	  function getMedianAndQuartiles(oStats){
+		var quartileInf;
+		var quartileSup;
+		var median;
+		var sovTotals = [];
+		var sovs = Object.keys(oStats)
+		for (var i =0; i<sovs.length; i++){
+			sovTotals.push(oStats[sovs[i]]["sovTotal"]);
+		};
+		sovTotals.sort(function(a,b){
+			return a-b;
+		  });
+		  median = getMedian(sovTotals);
+		  //Firstly, determining very specific cases such as 0, 1 or 2 data
+		  if (sovTotals.length === 0) return;
+		  if (sovTotals.length === 1){
+			quartileInf = sovTotals[0], quartileSup = sovTotals[0];
+		  }
+		  else if (sovTotals.length === 2){
+			quartileInf = sovTotals[0], quartileSup = sovTotals[1]
+		  }
+		  //then we should get normal values from a more reasonable distribution
+		  else{
+
+			  lowerHalf = [];
+			  upperHalf = [];
+			  var distLen = sovTotals.length;
+			  var halfFloor = Math.floor(distLen/2);
+			  var halfCeiling = halfFloor+1;
+			  if (distLen %2===0){
+				  for (var i=0 ; i<distLen/2 ; i++){
+					  lowerHalf.push(sovTotals[i]);
+					}
+					for (var i=distLen/2 ; i<distLen ; i++){
+						upperHalf.push(sovTotals[i]);
+					}
+				}
+				else{
+					for (var i=0; i<halfFloor; i++){
+						lowerHalf.push(sovTotals[i]);
+					}
+					for (var i=halfCeiling; i<distLen; i++){
+						upperHalf.push(sovTotals[i]);
+					}
+				}
+				var quartileInf = getMedian(lowerHalf);
+				var quartileSup = getMedian(upperHalf);
+			}
+				return [Math.max.apply(Math,sovTotals), quartileSup, median, quartileInf, Math.min.apply(Math,sovTotals)];
+			}
+			
+		function getMedian(sovTotalsArray){
+			var arrayLength = sovTotalsArray.length;
+			sovTotalsArray.sort(function(a,b){
+				return a-b;
+			  });
+			if(arrayLength ===0) return 1;
+			else if(arrayLength ===1) return sovTotalsArray[0];
+			var half = arrayLength/2;
+			if (arrayLength %2 !==0){
+				var median = sovTotalsArray[(arrayLength - 1) / 2];
+			}
+			else{
+				var median = (sovTotalsArray[arrayLength / 2 - 1] + sovTotalsArray[arrayLength / 2]) / 2;
+			}
+			return median;
+		}
 }
 
 function getConfig(){
     //TODO: get this value with a submit button, put in a form all others
-    var iColorPlages = $("#colorPlagesInput").val();
+    var iColorPlages = parseInt($("#colorPlagesInput").val());
+    var sHorizontal = $('div#horizontal input:checked').val();
+    var sLegendTextDir = $('div#legendTextDir input:checked').val();
     return {"iColorPlages":iColorPlages,
-	    "spacing":25,
-	    "horizontal":"right",
+		"spacing":25,
+		"legendSpacing":5,
+		"horizontal":sHorizontal,
+		"sLegendTextDir": sLegendTextDir,
 	    "width":20,
 	    "height":20};
 }
