@@ -19,7 +19,7 @@
             </header>
             <div class = "row">
                     <div class="col-md-12" align="center">
-                        <p>Ce programme écrit en d3.js vous permet de charger des données de longitude et latitude en .csv ou en .tsv et de visualiser avec une échelle de couleur les régions du monde où les éléments se situent. Vous pouvez également cliquer sur la crte pour visualiser rapidement le type d'évènement que vous souhaitez, comme par exemple les régions du monde ou vous êtes partis en vacances!</p>
+                        <p>Ce programme écrit en JavaScript avec les bibliothèques d3.js, jQuery et jQueryUi vous permet de cliquer sur la carte du monde et de visualiser avec une échelle de couleur les régions du monde où les éléments cliqués se situent. Un tableau sur la droite vous indiquera les valeurs numériques correspondant à vos clics.</p>
                     </div>
             </div>
             <div class="row">
@@ -32,9 +32,6 @@
                                     <div id="red"></div>
                                     <div id="green"></div>
                                     <div id="blue"></div>
-                                    <!-- TODO: expliquer par une alert ou une fenetre modale qu'ils doivent cliquer des pays pour en avoir! -->
-                                <label for="colorPlagesInput">Combien de carrés de légendes pour diviser vos évènements? La légende sera automatiquement déterminée par la médiane et les interquartiles de vos données. Notez que vous ne pouvez avoir plus de carrés que de pays différents sélectionnés. Ceci est actuellement limité à 4.</label>
-                                <input id="colorPlagesInput" type="number" name="colorPlages" min="0" max="0" value="0"/>
                                 <div id="test"></div>
                                 <label for="legendTextDir">Positionner le texte des légendes (dans la limite de l'espace disponible):</label>
                                 <div id="legendTextDir">
@@ -71,7 +68,8 @@
         <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.1.3/js/bootstrap.min.js"
                 integrity="sha384-ChfqqxuZUCnJSK3+MXmPNIyE6ZbWh2IMqE241rYiqJxyMiZ6OW/JmZQ5stwEULTy"
                 crossorigin="anonymous"></script>
-                <script
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjs/5.2.0/math.js"></script>
+        <script
                 src="https://code.jquery.com/ui/1.12.1/jquery-ui.min.js"
                 integrity="sha256-VazP97ZCwtekAsvgPBSUwPFKdrwD3unUfSGVYrahUqU="
                 crossorigin="anonymous"></script>

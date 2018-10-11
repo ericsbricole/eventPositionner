@@ -76,7 +76,7 @@ function drawMap(parsedJson){
 		else
 		    tooltipText = d.properties.SOVEREIGNT + "</br>";
 	    tooltip.html(tooltipText)
-		.style("left", d3.event.pageX-400 + "px")
+		.style("left", d3.event.pageX-460 + "px")
 		.style("top", d3.event.pageY-150 + "px")
 		.attr("width", 200)
 		.attr("height", 200);
@@ -102,19 +102,20 @@ function drawMap(parsedJson){
 	var oStats = {};
     countries.on("click",function(d){
 	    oStats = updateClickHistory(d, oStats);
-	    constructTable(d,oStats);
-		limitColorPlagesInput(oStats);
-		//colorSovs(oStats) may change the country class and thus bind SliderColors to the new one.
-		colorSovs(oStats);
+		constructTable(d,oStats);
+		drawLegend(oStats);
+	bindDomListeners(oStats);
+		colorSovs(oStats, {"tableColored": getConfig()["tableColored"]}); // may change the country class and thus bind SliderColors to the new one.
 		initiateOrBindSliderColors(this.getAttribute("class"));
 	});
-    
-	drawLegend(oStats);
-	bindDomListeners(oStats);
+	
     initiateOrBindSliderColors("sov");
     
     function constructTable(d, oStats) {
-		if ($('p#noTable')) $('p#noTable').remove();
+		if ($('p#noTable').length !== 0) {
+			$('p#noTable').remove();
+			$("h2").after("<button id='tableColored' class='btn btn-default'>Décolorer le tableau</button>");
+		}
 	//Destroy the previous table before recreating a new one
 	$("tr:not(tr:first-child),td").remove();
 	var isFirstClick;
@@ -202,7 +203,7 @@ function drawMap(parsedJson){
     }
     
     function initiateOrBindSliderColors(classElementToBind){
-		//I had problems when an element with several classes bound to colors. Thus the last class is prioritized over the previouses for binding.
+		//I had problems when an element with several classes bound to colors. Thus only the last one is used for binding.
 		classElementToBind = classElementToBind.split(" ");
 		classElementToBind = classElementToBind[classElementToBind.length-1];
 		var oCurrentColor = getRGB($("."+classElementToBind.replace(" ", ",")).css("fill"));
@@ -227,120 +228,127 @@ function drawMap(parsedJson){
 			var newColor = "rgb("+newRed+","+newGreen+","+newBlue+")";
 			//again, I cannot afford several classes to be bound. The last one is used.
 			$("[class$='"+classElementToBind+"']").css("fill", newColor);
+			$("[class$='"+classElementToBind+"']").css("background-color", newColor);
 		} )
 	}
 	
-	function limitColorPlagesInput(oStats){
-		sovs = Object.keys(oStats);
-		//get unique values
-		var uniqueSovs = sovs.filter(function (x, i, ar) { 
-			return ar.indexOf(x) == i; 
-		});
-		uniqueSovs.length < 4 ?
-		$("input#colorPlagesInput").attr("max",uniqueSovs.length)
-		:$("input#colorPlagesInput").attr("max",4);
-	}
-	
-	function colorSovs(oStats){
-		var iLegends = getConfig()["iColorPlages"];
-		if (iLegends){
-
-			var sovs = Object.keys(oStats);
-			for (var i=0; i<sovs.length; i++){
-				oStats[sovs[i]]
-			}
-			var distribution = getMedianAndQuartiles(oStats);
-			var max = distribution[0];
-			var quartileSup = distribution[1];
-			var median = distribution[2];
-			var quartileInf = distribution[3];
-			var min = distribution[4];
-			console.log("max = " + max+" quartileSup = " + quartileSup+' median = ' + median +' quartileInf = '+quartileInf +" min = " + min);
-			
-			switch (iLegends){
-				case 1:
-				$('.legendText0').text("Max: " + max);
-				var sovToColor = [];
-				var sovToDecolor = [];
-				Object.keys(oStats).forEach(function(sov){
-					if (oStats[sov]["sovTotal"] === max){
-						sovToColor.push(sov);
-					}
-					else{
-						sovToDecolor.push(sov);
-					}
-					sovToDecolor.forEach(function(sov){
-						$("path[id^='sov"+sov+"']").css("fill",$(".sov").css("fill"));
-						$("path[id^='sov"+sov+"']").removeClass("legendRect0");
-					});
-						sovToColor.forEach(function(sov){
-							$("path[id^='sov"+sov+"']").css("fill",$(".legendRect0").css("fill"));
-							$("path[id^='sov"+sov+"']").addClass("legendRect0");
-							initiateOrBindSliderColors("legendRect0");
-						});
-				})
-				
-				default:
-				$("g.legend").each(function(i,v){
-					positionTextLegend(v);
-					sovToColor
-				});
-			}
-			
+	function colorSovs(oStats, opt){
+		var sovs = Object.keys(oStats);
+		for (var i=0; i<sovs.length; i++){
+			oStats[sovs[i]]
 		}
+		var distribution = getMedianAndQuartiles(oStats);
+		var max = distribution[0];
+		var quartileSup = distribution[1];
+		var median = distribution[2];
+		var quartileInf = distribution[3];
+		var min = distribution[4];
+
+		$('.legendText0').text("De " + max + " (max) à " + quartileSup + "(quartile supérieur)");		
+		$('.legendText1').text("De " + quartileSup + " (exclus) à " + median + "(médiane)");
+		$('.legendText2').text("De " + median + " (exclus) à " + quartileInf + "(quartile inférieur)");		
+		$('.legendText3').text("De " + quartileInf + "(exclus)" + min + " (min)");
+
+		var pattern = /(legendRect[0-3])/g; //Will be used to remove legend classes previously determinated.
+		Object.keys(oStats).forEach(function(sov){
+		var processingSov = oStats[sov]["sovTotal"];
+
+		var pathSov = $("path[id^='sov"+sov+"']");
+		pathSov.removeClass(pathSov.attr("class").match(pattern));
+		var tdSov = $("td[data-sov='"+sov+"']");
+		if (opt["tableColored"] === false){
+			tdSov.removeClass(pathSov.attr("class").match(pattern));
+			tdSov.css("background-color","");
+		}
+		pathSov.css("fill",$(".sov").css("fill"));
+
+		if (processingSov >= quartileSup ){
+			pathSov.addClass("legendRect0");
+			pathSov.css("fill",$("rect.legendRect0").css("fill"));
+			if (opt["tableColored"] === true)
+				tdSov.addClass("legendRect0");
+		}
+		else if (processingSov >= median ){
+			pathSov.addClass("legendRect1");
+			pathSov.css("fill",$("rect.legendRect1").css("fill"));
+			if (opt["tableColored"] === true)
+				tdSov.addClass("legendRect1");
+		}
+		else if (processingSov >= quartileInf ){
+			pathSov.addClass("legendRect2");
+			pathSov.css("fill",$("rect.legendRect2").css("fill"));
+			if (opt["tableColored"] === true)
+				tdSov.addClass("legendRect2");
+		}
+		else{
+			pathSov.addClass("legendRect3");
+			pathSov.css("fill",$("rect.legendRect3").css("fill"));
+			if (opt["tableColored"] === true)
+				tdSov.addClass("legendRect3");
+		}
+		if (opt["tableColored"] === true)
+			tdSov.css("background-color",pathSov.css("fill"));
+
+		$("g.legend").each(function(i,v){
+			positionTextLegend(v);
+			});
+		})
 	}
 		
 		function drawLegend(oStats){
+			if ($(".legend").length !== 0){
+				return; //avoid resetting the legend colors after a click on a country
+			}
 			var oConfig = getConfig();
 			var width = oConfig["width"];
 			var height = oConfig["height"];
-	var spacing = oConfig["spacing"];//to separate g legends (1 g = 1 rect + 1 text)
-	var legendSpacing = oConfig["legendSpacing"];//to separate legend texts from their rect
-	var legendData = [];//[[x,y],...] of each legend rect
-	var y = 0;
-	if (oConfig["horizontal"] === "left"){
-	    var x = 0;
-	}
-	else{
-	    var x = $("#map").width() - width;
-	}
-	for (var i=0;i<oConfig["iColorPlages"];i++){
-	    var coord = [x,y];
-	    legendData.push(coord);
-	    y += spacing;
-	}
-	var svg = d3.select("svg");
-	svg.selectAll(".legend").remove();//before drawing a new legend, remove the previous one
-	var legend = svg.selectAll(".legend")
-		.data(legendData)
-	    .enter()
-		.append("g")
-		.attr("class", (d,i)=>"legend legend"+i)
-	    .attr("transform", function(d){
-		    return "translate("+d[0]+","+d[1]+")";
-		})
-		.call(d3.drag()
-        	.on("start", dragstarted)
-        	.on("drag", dragged)
-        	.on("end", dragended));
-		var legendRect = legend.append("rect")
-	    .attr("width",width)
-		.attr("height",height)
-		.attr("class", (d,i)=>"legend" + i +" legendRect"+i)
-		.on("click", function(){
-			initiateOrBindSliderColors(this.getAttribute("class"));
-		});
-		legend.append("text")
-		.text("TODO: adapt the legend here")
-		.attr("class", (d,i)=>"legend" + i +" legendText"+i)
-		.attr("x",function(){
-			if (getConfig()["horizontal"] ==="right"){
-				var legendWidth=this.getBBox().width;
-				return -legendWidth-legendSpacing;
-			}
-			return width + legendSpacing;
-		})
-		.attr("y",height-5);
+		var spacing = oConfig["spacing"];//to separate g legends (1 g = 1 rect + 1 text)
+		var legendSpacing = oConfig["legendSpacing"];//to separate legend texts from their rect
+		var legendData = [];// [[x,y], ...] of each legend rect
+		var y = 0;
+		if (oConfig["horizontal"] === "left"){
+			var x = 0;
+		}
+		else{
+			var x = $("#map").width() - width;
+		}
+		for (var i=0;i<4;i++){
+			var coord = [x,y];
+			legendData.push(coord);
+			y += spacing;
+		}
+		var svg = d3.select("svg");
+		svg.selectAll(".legend").remove();//before drawing a new legend, remove the previous one
+		var legend = svg.selectAll(".legend")
+			.data(legendData)
+			.enter()
+			.append("g")
+			.attr("class", (d,i)=>"legend legend"+i)
+			.attr("transform", function(d){
+				return "translate("+d[0]+","+d[1]+")";
+			})
+			.call(d3.drag()
+				.on("start", dragstarted)
+				.on("drag", dragged)
+				.on("end", dragended));
+			var legendRect = legend.append("rect")
+			.attr("width",width)
+			.attr("height",height)
+			.attr("class", (d,i)=>"legend" + i +" legendRect"+i)
+			.on("click", function(){
+				initiateOrBindSliderColors(this.getAttribute("class"));
+			});
+			legend.append("text")
+			.text("TODO: adapt the legend here")
+			.attr("class", (d,i)=>"legend" + i +" legendText"+i)
+			.attr("x",function(){
+				if (getConfig()["horizontal"] ==="right"){
+					var legendWidth=this.getBBox().width;
+					return -legendWidth-legendSpacing;
+				}
+				return width + legendSpacing;
+			})
+			.attr("y",height-5);
 	}
 
 	function positionTextLegend(gLegendNode){
@@ -385,15 +393,17 @@ function drawMap(parsedJson){
 	  }
 
 	function bindDomListeners(oStats){
-		var iColors = $("#colorPlagesInput");
-		iColors.change(function(){
-			var distriValues = getMedianAndQuartiles(oStats);
-			var max = distriValues[0];
-			var quartileSup = distriValues[1];
-			var median = distriValues[2];
-			var quartileInf = distriValues[3];
-			var min = distriValues[4];
-			drawLegend(oStats);
+		$("#tableColored").click(function(){
+			if ($("#tableColored").attr("class") === "btn btn-default"){
+				$("#tableColored").attr("class", "btn btn-info");
+				$("#tableColored").text("Colorer le tableau");
+				colorSovs(oStats, {"tableColored": false});
+			}
+			else{
+				$("#tableColored").attr("class", "btn btn-default");
+				$("#tableColored").text("Décolorer le tableau");
+				colorSovs(oStats, {"tableColored": true});
+			}
 		})
 		var inputLegendTextDirs = $("input[name='legendTextDir']")
 								.change(function(){
@@ -483,15 +493,15 @@ function drawMap(parsedJson){
 }
 
 function getConfig(){
-    //TODO: get this value with a submit button, put in a form all others
-    var iColorPlages = parseInt($("#colorPlagesInput").val());
+	//TODO: get values in a form
+	var tableColored = ($("#tableColored").attr("class") === "btn btn-default" ? true : false);  // default=colored table
     var sHorizontal = $('div#horizontal input:checked').val();
     var sLegendTextDir = $('div#legendTextDir input:checked').val();
-    return {"iColorPlages":iColorPlages,
-		"spacing":25,
-		"legendSpacing":5,
-		"horizontal":sHorizontal,
-		"sLegendTextDir": sLegendTextDir,
-	    "width":20,
-	    "height":20};
+    return {"spacing" : 25,
+			"legendSpacing" : 5,
+			"horizontal" : sHorizontal,
+			"sLegendTextDir" : sLegendTextDir,
+			"width" : 20,
+			"height" : 20,
+			"tableColored" : tableColored};
 }
