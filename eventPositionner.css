@@ -20,8 +20,9 @@
     }
 
     .tooltip {
-        fill: #FFFF00;
-        background-color: #FFFF00;
+        background-color: #FFEBCD;
+		border-style: solid;
+		border-width: 1px;
     }
 	
 	.table td {

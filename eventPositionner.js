@@ -6,8 +6,7 @@ function initiatePage(){
     var geoJson = "data/medium_scale_cultural_countries.geojson";
     var resultat = d3.json(geoJson)
 	.then(function(parsedJson) {
-		drawMap(parsedJson);
-		
+		drawMap(parsedJson);		
 	    })
 	.catch(function(error) {
 		alert("erreur!!!!\n" + error);
@@ -47,12 +46,11 @@ function drawMap(parsedJson){
 		initiateOrBindSliderColors(this.getAttribute("class"));
 	});
     
-    var g = svg.append("g");
-    
-    
-    var tooltip = d3.select(".map-parent").append("div")
-	.attr("class", "tooltip")
-	.style("opacity", 1);
+	var g = svg.append("g");
+	
+	var tooltip = d3.select(".map-parent").append("div")
+				.attr("class", "tooltip text-center")
+				.style("opacity", 1);
     
     var countries = g.selectAll("path")
         .data(parsedJson.features)   
@@ -62,65 +60,64 @@ function drawMap(parsedJson){
         .attr("id", (d) => "sov" + d.properties.SOVEREIGNT + d.properties.NAME)
 	.attr("class", "sov")
 	.attr("name", (d) => d.properties.NAME)
-	.attr("cont", (d) => d.properties.CONTINENT);//TODO: name and cont might be simpler to set here.
     
-    //TODO?: get NAME and modify style of hovered object only once into a mouseover, then call the .on("mousemove"? Might be more optimized.
-    var tooltipText;
     countries.on("mousemove", function(d){
-	    //The tooltip has to track the mouse and change its style/content.
-	    mouse = d3.mouse(this);
-	    x = mouse[0];
-	    y = mouse[1];
-	    if (d.properties.SOVEREIGNT !== d.properties.NAME)
-		tooltipText = d.properties.SOVEREIGNT + "</br>(" + d.properties.NAME+")"
-		else
-		    tooltipText = d.properties.SOVEREIGNT + "</br>";
-	    tooltip.html(tooltipText)
-		.style("left", d3.event.pageX-460 + "px")
-		.style("top", d3.event.pageY-150 + "px")
-		.attr("width", 200)
-		.attr("height", 200);
-	    tooltip.transition()
-		.duration(100)
-		.style("opacity", 1);
-	    //the sov also has to change its style to make it clear it is under observation.
-	    //TODO: find another change of style which would be more stylish (coloration change?)
-	    d3.select(this).transition()
-		.duration(200)
-		.attr("opacity", 0.9);
+		var coordinates = d3.mouse(this);
+				refreshTooltipContent(d);
+				tooltip.style("left", d3.event.pageX-440 + "px")
+				.style("top", d3.event.pageY-180 + "px")				
+				.attr("width", 200)
+				.attr("height", 200)
+			tooltip.transition()
+				.duration(200)
+				.style("opacity", 1);
+
+		$(this).addClass("active");
 	});
     
     countries.on("mouseout",function(){
-	    tooltip.transition()
+		$(this).removeClass("active");
+		tooltip.transition()
 		.duration(200)
 		.style("opacity", 0);
-	    d3.select(this).transition()
-		.duration(200)
-		.attr("opacity", 1);
+		tooltip.html("");
 	})
 	
 	var oStats = {};
-    countries.on("click",function(d){
-	    oStats = updateClickHistory(d, oStats);
+    countries.on("click",function(d,e){
+		oStats = updateClickHistory(d, oStats, (d3.event.ctrlKey? {"decrement":true}: {}));
+		refreshTooltipContent(d);
 		constructTable(d,oStats);
 		drawLegend(oStats);
-	bindDomListeners(oStats);
-		colorSovs(oStats, {"tableColored": getConfig()["tableColored"]}); // may change the country class and thus bind SliderColors to the new one.
+		reColorSovs(oStats, {"tableColored": getConfig()["tableColored"]}); // may change the country class and thus bind SliderColors to the new one.
 		initiateOrBindSliderColors(this.getAttribute("class"));
 	});
 	
-    initiateOrBindSliderColors("sov");
+	initiateOrBindSliderColors("sov");
+	bindDomListeners(oStats);
+
+	function refreshTooltipContent(d){
+		var tooltipContent = d.properties.SOVEREIGNT;
+		if (d.properties.NAME !== d.properties.SOVEREIGNT)
+			tooltipContent += " (" + d.properties.NAME+")";
+		var flagClass = "center-block flag flag-" + d.properties.ISO_A2;
+		flagClass = flagClass.toLowerCase();
+		tooltipContent += "</br><img src='data/blank.gif' class='" +flagClass + "' alt='No image was loaded'/></div>";
+		if (Object.keys(oStats).includes(d.properties.SOVEREIGNT)){
+			tooltipContent += "</br><p>	Nombre de clic : " + oStats[d.properties.SOVEREIGNT]["sovTotal"] + "</p>";
+		}
+		tooltip.html(tooltipContent);
+	}
     
     function constructTable(d, oStats) {
 		if ($('p#noTable').length !== 0) {
 			$('p#noTable').remove();
-			$("h2").after("<button id='tableColored' class='btn btn-default'>Décolorer le tableau</button>");
+			$("button#tableColored").removeAttr("hidden");
 		}
 	//Destroy the previous table before recreating a new one
 	$("tr:not(tr:first-child),td").remove();
-	var isFirstClick;
 	var sov = Object.keys(oStats);
-		isFirstClick = (sov.length === 1 && oStats[sov]["sovTotal"] === 1 ? true : false);
+		var isFirstClick = ($("th").length === 0 );
 		if (isFirstClick) {
 		    var thSov = "<th>Souveraineté:</th>";
 		    var thName = "<th>Nom:</th>";
@@ -170,21 +167,42 @@ function drawMap(parsedJson){
 		}
     }
     
-    function updateClickHistory(d, oStats){
+    function updateClickHistory(d, oStats, opt){
 	var sov = d.properties.SOVEREIGNT;
 	var name = d.properties.NAME;
 	if (sov in oStats === false){
-	    var o = {};
-	    o[name] = 1;
-	    o["sovTotal"] = 0; //incremented at the end of the function
+		var o = {};
+		o[name] = 0;
+	    o["sovTotal"] = 0; //incremented if needed at the end of the function
 	    oStats[sov] = o
 		}
-	else if (name in oStats[sov]){
-	    oStats[sov][name] += 1;
+	if (name in oStats[sov]){
+		if (opt["decrement"]){
+			if (oStats[sov][name] - 1 <= 0){
+				delete oStats[sov][name];
+				if ( Object.keys(oStats[sov]).length === 1 ){//oStats has no remaining name (the 1 is actually sovTotal)
+					delete oStats[sov];
+				}
+			}
+			else{
+				oStats[sov][name] -= 1;
+				var hasBeenDecremented = true;
+			}
+				if (hasBeenDecremented)
+					oStats[sov]["sovTotal"] -= 1;
+		}
+		
+		else{
+			oStats[sov][name] += 1;
+			oStats[sov]["sovTotal"] += 1;
+		}
 	}
-	else
-	    oStats[sov][name] = 1;
-	oStats[sov]["sovTotal"] += 1;
+	else{
+		if (!opt["decrement"]){
+		oStats[sov][name] = 1;
+		oStats[sov]["sovTotal"] += 1;
+		}
+	}
 	//oStats has all the infos to construct the table.
 	return oStats;
     }
@@ -232,11 +250,17 @@ function drawMap(parsedJson){
 		} )
 	}
 	
-	function colorSovs(oStats, opt){
-		var sovs = Object.keys(oStats);
-		for (var i=0; i<sovs.length; i++){
-			oStats[sovs[i]]
+	function reColorSovs(oStats, opt){
+		var pattern = /(legendRect[0-3])/g; // used later to remove legend classes previously defined.
+		$(".sov").removeClass($(".sov").attr("class").match(pattern));
+		$(".sov").css("fill",$(".sov").css("fill"));
+		// hide legends and remove colors from sov if the user has completely emptied the object 
+		if (Object.keys(oStats).length === 0 ){
+			$("g.legend").hide();
+			return;
 		}
+
+		$("g.legend").show();
 		var distribution = getMedianAndQuartiles(oStats);
 		var max = distribution[0];
 		var quartileSup = distribution[1];
@@ -247,20 +271,18 @@ function drawMap(parsedJson){
 		$('.legendText0').text("De " + max + " (max) à " + quartileSup + "(quartile supérieur)");		
 		$('.legendText1').text("De " + quartileSup + " (exclus) à " + median + "(médiane)");
 		$('.legendText2').text("De " + median + " (exclus) à " + quartileInf + "(quartile inférieur)");		
-		$('.legendText3').text("De " + quartileInf + "(exclus)" + min + " (min)");
+		$('.legendText3').text("De " + quartileInf + "(exclus) à " + min + " (min)");
 
-		var pattern = /(legendRect[0-3])/g; //Will be used to remove legend classes previously determinated.
 		Object.keys(oStats).forEach(function(sov){
 		var processingSov = oStats[sov]["sovTotal"];
 
 		var pathSov = $("path[id^='sov"+sov+"']");
-		pathSov.removeClass(pathSov.attr("class").match(pattern));
+		
 		var tdSov = $("td[data-sov='"+sov+"']");
 		if (opt["tableColored"] === false){
 			tdSov.removeClass(pathSov.attr("class").match(pattern));
 			tdSov.css("background-color","");
 		}
-		pathSov.css("fill",$(".sov").css("fill"));
 
 		if (processingSov >= quartileSup ){
 			pathSov.addClass("legendRect0");
@@ -394,17 +416,23 @@ function drawMap(parsedJson){
 
 	function bindDomListeners(oStats){
 		$("#tableColored").click(function(){
-			if ($("#tableColored").attr("class") === "btn btn-default"){
-				$("#tableColored").attr("class", "btn btn-info");
-				$("#tableColored").text("Colorer le tableau");
-				colorSovs(oStats, {"tableColored": false});
+			if ($(this).attr("class") === "btn btn-default"){
+				$(this).attr("class", "btn btn-info");
+				$(this).text("Colorer le tableau");
+				reColorSovs(oStats, {"tableColored": false});
 			}
 			else{
-				$("#tableColored").attr("class", "btn btn-default");
-				$("#tableColored").text("Décolorer le tableau");
-				colorSovs(oStats, {"tableColored": true});
+				$(this).attr("class", "btn btn-default");
+				$(this).text("Décolorer le tableau");
+				reColorSovs(oStats, {"tableColored": true});
 			}
-		})
+		});
+
+		$("a").popover({
+			"trigger":"hover",
+			"placement":"top"
+		});
+
 		var inputLegendTextDirs = $("input[name='legendTextDir']")
 								.change(function(){
 									$("g.legend").each(function(i,v){
