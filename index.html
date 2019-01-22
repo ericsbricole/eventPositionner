@@ -14,14 +14,14 @@
     </head>
 
     <body>
-        <div class = "container"></body>
+        <div class = "custom-container container"></body>
             <header class = "page-header">
                 <h1>Positionneur d'évènement</h1>
             </header>
             <div class = "row">
                     <div class="col-md-12" align="center">
                         <p>Ce programme écrit en JavaScript avec les bibliothèques D3.js, jQuery et jQueryUi vous permet de cliquer sur une carte du monde pour générer une légende automatique.
-                            Elle séparera les pays cliqués en 4 groupes égaux, calculés avec les <a href="#" data-toggle="popover" title="Définition wikipédia:" data-content="En statistique descriptive, un quartile est chacune des trois valeurs qui divisent les données triées en quatre parts égales, de sorte que chaque partie représente 1/4 de l'échantillon de population.">quartiles</a>.
+                            Elle séparera les pays cliqués en 4 groupes égaux, calculés avec les <a href="#" data-toggle="popover" data-trigger="hover" data-placement="top" title="Définition wikipédia:" data-content="En statistique descriptive, un quartile est chacune des trois valeurs qui divisent les données triées en quatre parts égales, de sorte que chaque partie représente 1/4 de l'échantillon de population.">quartiles</a>.
                             Vous pouvez ainsi visualiser géographiquement ce que vous souhaitez.
                             Un tableau sur la droite vous indiquera les valeurs numériques correspondant à vos clics, triés par ordre décroissant.</p>
                         <p>Note: Ctrl + clic pour faire baisser la valeur d'un pays.</p>
@@ -29,10 +29,12 @@
             </div>
             <div class="row">
                 <div class = "col-md-3">
-                    <form class="well">
-                        <fieldset>
+                    
                             <legend> Personnalisation de la carte</legend>
                             <div>
+                                    <p>Entrez votre fichier de données. Il doit être au format csv avec deux colonnes et un en-tête. Un extrait du fichier d'exemple est disponible <a href="#" id="csvExample" data-toggle="popover" data-html="true" data-trigger="hover" data-placement="top" title="exemple de csv avec en-tête" data-content='Country Name,"Population, total(2017)"<br/>Germany,82695000<br/>United Kingdom,66022273'>ici</a></p>
+                                        <input id="userFile" type="file" name="data" accept="csv">
+                                        <button id="toto" class="btn-info">ici</button>
                                     <p>Utilisez les niveaux de rouge, vert et bleu ci-dessous pour définir les couleurs. Cliquez sur un élément de la carte pour y lier les couleurs.</p>
                                     <div id="red"></div>
                                     <div id="green"></div>
@@ -44,8 +46,6 @@
                                     <input type="radio" name="legendTextDir" value="left"> A gauche
                                 </div>
                             </div>
-                        </fieldset>
-                    </form>
                     </div>
                 <div class = "col-md-6 map-parent"></div>
                 <div class = "col-md-3">

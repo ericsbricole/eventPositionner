@@ -58,6 +58,11 @@
         width: 25
     }
 
+    g.legend>rect{  
+        stroke: #2A2C39;
+        stroke-width: 0.7;
+    }
+
     .legendRect0{
         fill: rgb(255,0,0);
     }
@@ -78,3 +83,32 @@
         stroke: #2A2C39;
         stroke-width: 1;
     }
+
+    .container.custom-container {
+        padding-right: 5px;
+  padding-left: 5px;
+      }
+
+    @media (min-width: 576px) {
+        .custom-container {
+          max-width: 540px;
+        }
+      }
+      
+      @media (min-width: 768px) {
+        .custom-container {
+          max-width: 720px;
+        }
+      }
+      
+      @media (min-width: 992px) {
+        .custom-container {
+          max-width: 1000px;
+        }
+      }
+      
+      @media (min-width: 1200px) {
+        .custom-container {
+          max-width: 1140px;
+        }
+      }

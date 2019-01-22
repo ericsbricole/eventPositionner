@@ -25,8 +25,7 @@ function drawMap(parsedJson){
     
     var geoGenerator = d3.geoPath()
 	.projection(projection);
-    var path = geoGenerator(parsedJson); // path is used to set d
-    
+    var path = geoGenerator(parsedJson);
     
     var svg = d3.select(".map-parent").append("svg")
 	.attr("id", "map")
@@ -58,14 +57,15 @@ function drawMap(parsedJson){
         .append('path')
         .attr('d', geoGenerator)
         .attr("id", (d) => "sov" + d.properties.SOVEREIGNT + d.properties.NAME)
-	.attr("class", "sov")
-	.attr("name", (d) => d.properties.NAME)
+        .attr("sov", (d) => d.properties.SOVEREIGNT)
+		.attr("class", "sov")
+		.attr("name", (d) => d.properties.NAME)
     
     countries.on("mousemove", function(d){
 		var coordinates = d3.mouse(this);
 				refreshTooltipContent(d);
-				tooltip.style("left", d3.event.pageX-440 + "px")
-				.style("top", d3.event.pageY-180 + "px")				
+				tooltip.style("left", d3.event.pageX-600 + "px")
+				.style("top", d3.event.pageY-210 + "px")				
 				.attr("width", 200)
 				.attr("height", 200)
 			tooltip.transition()
@@ -82,34 +82,94 @@ function drawMap(parsedJson){
 		.style("opacity", 0);
 		tooltip.html("");
 	})
-	
+
+	/* oStats will contain data at this example format:
+	{"Denmark":{"Denmark":1,
+				"Greenland":1,
+				"sovTotal":2},
+	"other sovereignty":{"other country name":2,
+						"sovTotal":...}
+	}*/
+	var unit = "click"//by default, the app will count clicks on countries
 	var oStats = {};
-    countries.on("click",function(d,e){
-		oStats = updateClickHistory(d, oStats, (d3.event.ctrlKey? {"decrement":true}: {}));
-		refreshTooltipContent(d);
-		constructTable(d,oStats);
+
+	 function runMapAndTable(dataFromClickedCountry){
+		 if (dataFromClickedCountry){ // else the function is called from the #userFileLoad button
+			oStats = updateStats(dataFromClickedCountry, oStats, (d3.event.ctrlKey? {"decrement":true}: {}));
+			refreshTooltipContent(dataFromClickedCountry);
+		 }
+		constructTable(oStats);
 		drawLegend(oStats);
 		reColorSovs(oStats, {"tableColored": getConfig()["tableColored"]}); // may change the country class and thus bind SliderColors to the new one.
-		initiateOrBindSliderColors(this.getAttribute("class"));
+
+	};
+
+	countries.on("click", (d) => {
+		runMapAndTable(d);
 	});
+	
+	$("input#userFile").change(function(event){
+		var csvFile = event.target.files[0];
+		var reader = new FileReader();
+		reader.readAsText(csvFile);
+		reader.onloadend = function(event) {
+			csvData = reader.result;
+			var rows = csvData.split(/\r?\n|\r/);
+			unit = rows[0].split(",")[1];
+
+			for (var i=1; i<rows.length;i++){
+				var row = rows[i].split(",");
+				if (row.length ==2 && row[0] !== "" && row[1] !== ""){
+					let name = row[0];
+					let value = parseInt(row[1]);
+
+					let correspondingPath = $("[name=\""+name+"\"");
+					if (correspondingPath.length !== 0){
+						let sov = correspondingPath.attr("sov");
+						if (oStats[sov] === undefined)
+							oStats[sov] = {};
+						oStats[sov][name] = value;
+						oStats[sov]["sovTotal"] === undefined? oStats[sov]["sovTotal"]=value : oStats[sov]["sovTotal"]+=value;
+					}
+				}
+			}
+		}
+		$("#toto").on("click", () => runMapAndTable());
+	});
+
+	
 	
 	initiateOrBindSliderColors("sov");
 	bindDomListeners(oStats);
 
 	function refreshTooltipContent(d){
-		var tooltipContent = d.properties.SOVEREIGNT;
-		if (d.properties.NAME !== d.properties.SOVEREIGNT)
-			tooltipContent += " (" + d.properties.NAME+")";
-		var flagClass = "center-block flag flag-" + d.properties.ISO_A2;
+		let tooltipContent = d.properties.NAME;
+		let tooltipĈontentUnderFlag = "";
+		let flagClass = "center-block flag flag-" + d.properties.ISO_A2;
 		flagClass = flagClass.toLowerCase();
-		tooltipContent += "</br><img src='data/blank.gif' class='" +flagClass + "' alt='No image was loaded'/></div>";
+		tooltipContent += "</br><img src='data/blank.gif' class='" +flagClass + "' alt='No image was loaded'/></div></br>";
 		if (Object.keys(oStats).includes(d.properties.SOVEREIGNT)){
-			tooltipContent += "</br><p>	Nombre de clic : " + oStats[d.properties.SOVEREIGNT]["sovTotal"] + "</p>";
+			tooltipĈontentUnderFlag += "<p>	"+unit+" :</br>"
+			if (oStats[d.properties.SOVEREIGNT][d.properties.NAME] !== undefined)
+				tooltipĈontentUnderFlag +=  oStats[d.properties.SOVEREIGNT][d.properties.NAME];
+			else
+			tooltipĈontentUnderFlag +=  0;
+			if (d.properties.SOVEREIGNT !== d.properties.NAME){
+				tooltipContent += " (" + d.properties.SOVEREIGNT + ")";
+				if (oStats[d.properties.SOVEREIGNT][d.properties.SOVEREIGNT] !== undefined)
+					tooltipĈontentUnderFlag += " (" +oStats[d.properties.SOVEREIGNT][d.properties.SOVEREIGNT] +")";
+				else{
+					tooltipĈontentUnderFlag += "(0)";
+				}
+			}
 		}
+		else
+		tooltipĈontentUnderFlag += "</br><p>	Aucune donnée disponible</p>";
+		tooltipContent += tooltipĈontentUnderFlag += "</p>";
 		tooltip.html(tooltipContent);
 	}
     
-    function constructTable(d, oStats) {
+    function constructTable(oStats) {
 		if ($('p#noTable').length !== 0) {
 			$('p#noTable').remove();
 			$("button#tableColored").removeAttr("hidden");
@@ -121,13 +181,13 @@ function drawMap(parsedJson){
 		if (isFirstClick) {
 		    var thSov = "<th>Souveraineté:</th>";
 		    var thName = "<th>Nom:</th>";
-		    var thNumber = "<th>Nombre:</th>";
+		    var thNumber = "<th>" + unit +":</th>";
 		    $("table").append("<thead><tr>" + thSov + thName + thNumber + "</tr></thead><tbody></tbody>");
 		}
 		//sorting sovTotals
 		var sovTotalsOrdered = [];
 		for (var sov in oStats){
-		    sovTotalsOrdered.push(oStats[sov]["sovTotal"]);
+			sovTotalsOrdered.push(oStats[sov]["sovTotal"]);
 		}
 		//TODO: Currently, when several names of same sov catches up another sov, it is not stable if it is written before or after this other one. 
 		//So, it may be useful to set a rule for which one should be written first in evenly cases.
@@ -136,19 +196,19 @@ function drawMap(parsedJson){
 		var sovOrdered = Object.keys(oStats);
 		sovOrdered.sort(function(a,b){
 			return oStats[b]["sovTotal"]-oStats[a]["sovTotal"];
-		    })
-		    
-		    var nameSorted;
+		})
+		
+		var nameSorted;
 		for (var i=0; i<sovOrdered.length; i++){
-		    nameSorted = Object.keys(oStats[sovOrdered[i]]);
+			nameSorted = Object.keys(oStats[sovOrdered[i]]);
 		    nameSorted.splice(nameSorted.indexOf("sovTotal"),1)
 			nameSorted.sort(function(a,b){
 				return oStats[sovOrdered[i]][b] - oStats[sovOrdered[i]][a];
-			    });
+			});
 		    var isSovSpanned = false;
 		    for (var j=0; j<nameSorted.length; j++){
-			if (nameSorted.length > 1 && j===0){
-			    var tdSov = constructTableTag("td",sovOrdered[i],nameSorted[j], sovOrdered[i], nameSorted.length);
+				if (nameSorted.length > 1 && j===0){
+					var tdSov = constructTableTag("td",sovOrdered[i],nameSorted[j], sovOrdered[i], nameSorted.length);
 			    var tdSovTotal = constructTableTag("td", sovOrdered[i],nameSorted[j], oStats[sovOrdered[i]]["sovTotal"], nameSorted.length);
 			    isSovSpanned = true;
 			}
@@ -166,48 +226,38 @@ function drawMap(parsedJson){
 		    }
 		}
     }
-    
-    function updateClickHistory(d, oStats, opt){
-	var sov = d.properties.SOVEREIGNT;
-	var name = d.properties.NAME;
-	if (sov in oStats === false){
-		var o = {};
-		o[name] = 0;
-	    o["sovTotal"] = 0; //incremented if needed at the end of the function
-	    oStats[sov] = o
-		}
-	if (name in oStats[sov]){
-		if (opt["decrement"]){
-			if (oStats[sov][name] - 1 <= 0){
-				delete oStats[sov][name];
-				if ( Object.keys(oStats[sov]).length === 1 ){//oStats has no remaining name (the 1 is actually sovTotal)
-					delete oStats[sov];
-				}
+	
+	
+    function updateStats(d, oStats, opt){
+		let sov = d.properties.SOVEREIGNT;
+		let name = d.properties.NAME;
+		if (sov in oStats === false){
+			oStats[sov] = {"sovTotal":0 };//incremented if needed at the end of the function
+			oStats[sov][name] = 0;
 			}
-			else{
-				oStats[sov][name] -= 1;
-				var hasBeenDecremented = true;
-			}
-				if (hasBeenDecremented)
-					oStats[sov]["sovTotal"] -= 1;
-		}
+		if (name in oStats[sov] == false)
+			oStats[sov][name] = 0;
 		
+		if (opt["decrement"]){
+			oStats[sov]["sovTotal"]--;
+			oStats[sov][name]--;
+			if (oStats[sov]["sovTotal"] <= 0)
+				delete oStats[sov]
+			else if (oStats[sov][name] <= 0)
+				delete oStats[sov][name];
+		}
 		else{
-			oStats[sov][name] += 1;
-			oStats[sov]["sovTotal"] += 1;
+			oStats[sov]["sovTotal"]++;
+			oStats[sov][name]++;
 		}
+		return oStats;
 	}
-	else{
-		if (!opt["decrement"]){
-		oStats[sov][name] = 1;
-		oStats[sov]["sovTotal"] += 1;
-		}
+    
+    function updateStatsFromFile(oStats){
+		let sov = d.properties.SOVEREIGNT;
+		let name = d.properties.NAME;
 	}
-	//oStats has all the infos to construct the table.
-	return oStats;
-    }
-    
-    
+
     function constructTableTag(tagType, clickedSov,clickedName, content, optionRowSpan){
 	if (optionRowSpan)
 	    return "<"+tagType+" data-sov='" + clickedSov + "' data-name='" + clickedName + "' rowspan='"+optionRowSpan+"'>" + content + "</"+tagType+">";
@@ -402,7 +452,7 @@ function drawMap(parsedJson){
 	}
 
 	function dragstarted(d) {
-		d3.select(this).raise().classed("active", true);
+		d3.select(this).classed("active", true);
 	  }
 	  
 	  function dragged(d) {
@@ -428,9 +478,8 @@ function drawMap(parsedJson){
 			}
 		});
 
-		$("a").popover({
-			"trigger":"hover",
-			"placement":"top"
+		$(function(){
+			$("[data-toggle=popover]").popover();
 		});
 
 		var inputLegendTextDirs = $("input[name='legendTextDir']")
@@ -439,9 +488,8 @@ function drawMap(parsedJson){
 										positionTextLegend(v);
 									});
 								});
-
 	}
-	
+
 	function getRGB(str){
 		var match = str.match(/rgba?\((\d{1,3}), ?(\d{1,3}), ?(\d{1,3})\)?(?:, ?(\d(?:\.\d?))\))?/);
 		return match ? {
@@ -459,6 +507,7 @@ function drawMap(parsedJson){
 		var sovs = Object.keys(oStats)
 		for (var i =0; i<sovs.length; i++){
 			sovTotals.push(oStats[sovs[i]]["sovTotal"]);
+			if (isNaN(oStats[sovs[i]]["sovTotal"])) debugger;
 		};
 		sovTotals.sort(function(a,b){
 			return a-b;
@@ -474,7 +523,6 @@ function drawMap(parsedJson){
 		  }
 		  //then we should get normal values from a more reasonable distribution
 		  else{
-
 			  lowerHalf = [];
 			  upperHalf = [];
 			  var distLen = sovTotals.length;
@@ -522,9 +570,9 @@ function drawMap(parsedJson){
 
 function getConfig(){
 	//TODO: get values in a form
-	var tableColored = ($("#tableColored").attr("class") === "btn btn-default" ? true : false);  // default=colored table
-    var sHorizontal = $('div#horizontal input:checked').val();
-    var sLegendTextDir = $('div#legendTextDir input:checked').val();
+	let tableColored = ($("#tableColored").attr("class") === "btn btn-default" ? true : false);  // default=colored table
+    let sHorizontal = $('div#horizontal input:checked').val();
+	let sLegendTextDir = $('div#legendTextDir input:checked').val();
     return {"spacing" : 25,
 			"legendSpacing" : 5,
 			"horizontal" : sHorizontal,
