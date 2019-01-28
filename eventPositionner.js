@@ -3,8 +3,9 @@ $(document).ready(initiatePage);
 function initiatePage(){
     
     //TODO: get these data from a configuration file
-    var geoJson = "data/medium_scale_cultural_countries.geojson";
-    var resultat = d3.json(geoJson)
+	let geoJson = "data/medium_scale_cultural_countries.geojson";
+	// let geoJson = "http://localhost:8000/medium_scale_cultural_countries.geojson"; // TODO: remove the inappropriate one for "prod"
+    let resultat = d3.json(geoJson)
 	.then(function(parsedJson) {
 		drawMap(parsedJson);		
 	    })
@@ -15,56 +16,67 @@ function initiatePage(){
 };
 
 function drawMap(parsedJson){
-    var height = 500;
-    var coordinates = [0, 0];
-    var x = coordinates[0];
-    var y = coordinates[1];
-    var projection = d3.geoMercator()
+    let height = 500;
+    let coordinates = [0, 0];
+    let x = coordinates[0];
+    let y = coordinates[1];
+    let projection = d3.geoMercator()
 	.center([0, 45])
 	.scale(170);
     
-    var geoGenerator = d3.geoPath()
+    let geoGenerator = d3.geoPath()
 	.projection(projection);
-    var path = geoGenerator(parsedJson);
+    let path = geoGenerator(parsedJson);
     
-    var svg = d3.select(".map-parent").append("svg")
+    let svg = d3.select(".map-parent").append("svg")
 	.attr("id", "map")
 	.attr("width", "100%")
 	.attr("height", height);
-    var zoomListener = d3.zoom()
+    let zoomListener = d3.zoom()
     	.on("zoom",function() {
 		g.attr("transform",d3.event.transform)
 	    });
     svg.call(zoomListener);
     
-    var background = svg.append("rect")
+    let background = svg.append("rect")
 	.attr("class", "background")
 	.attr("width", "100%")
 	.attr("height", "100%")
 	.on("click",function(){
 		initiateOrBindSliderColors(this.getAttribute("class"));
 	});
+
+	function descending(a, b) {
+		return b.properties.VALUE < a.properties.VALUE ? -1 : b.properties.VALUE > a.properties.VALUE ? 1 : b.properties.VALUE >= a.properties.VALUE ? 0 : NaN;
+	  }
     
-	var g = svg.append("g");
+	let g = svg.append("g");
 	
-	var tooltip = d3.select(".map-parent").append("div")
+	let tooltip = d3.select(".map-parent").append("div")
 				.attr("class", "tooltip text-center")
 				.style("opacity", 1);
-    
-    var countries = g.selectAll("path")
+	
+	parsedJson.features.forEach( (feature) => {
+		feature["properties"]["VALUE"] = 0
+		if (feature["properties"]["SOVEREIGNT"] === feature["properties"]["NAME"])
+		feature["properties"]["TOTAL"] = 0;
+		feature["properties"]["NAMESWITHVALUES"] = 0
+	});
+
+    let countries = g.selectAll("path")
         .data(parsedJson.features)   
         .enter()
         .append('path')
         .attr('d', geoGenerator)
         .attr("id", (d) => "sov" + d.properties.SOVEREIGNT + d.properties.NAME)
         .attr("sov", (d) => d.properties.SOVEREIGNT)
-		.attr("class", "sov")
+		.attr("class", "sov noData")
 		.attr("name", (d) => d.properties.NAME)
     
     countries.on("mousemove", function(d){
-		var coordinates = d3.mouse(this);
+		let coordinates = d3.mouse(this);
 				refreshTooltipContent(d);
-				tooltip.style("left", d3.event.pageX-600 + "px")
+				tooltip.style("left", d3.event.pageX-400)
 				.style("top", d3.event.pageY-210 + "px")				
 				.attr("width", 200)
 				.attr("height", 200)
@@ -74,7 +86,7 @@ function drawMap(parsedJson){
 
 		$(this).addClass("active");
 	});
-    
+    drawLegend();
     countries.on("mouseout",function(){
 		$(this).removeClass("active");
 		tooltip.transition()
@@ -83,192 +95,166 @@ function drawMap(parsedJson){
 		tooltip.html("");
 	})
 
-	/* oStats will contain data at this example format:
-	{"Denmark":{"Denmark":1,
-				"Greenland":1,
-				"sovTotal":2},
-	"other sovereignty":{"other country name":2,
-						"sovTotal":...}
-	}*/
 	var unit = "click"//by default, the app will count clicks on countries
 	var oStats = {};
 
-	 function runMapAndTable(dataFromClickedCountry){
-		 if (dataFromClickedCountry){ // else the function is called from the #userFileLoad button
-			oStats = updateStats(dataFromClickedCountry, oStats, (d3.event.ctrlKey? {"decrement":true}: {}));
-			refreshTooltipContent(dataFromClickedCountry);
-		 }
-		constructTable(oStats);
-		drawLegend(oStats);
-		reColorSovs(oStats, {"tableColored": getConfig()["tableColored"]}); // may change the country class and thus bind SliderColors to the new one.
-
-	};
-
 	countries.on("click", (d) => {
+		let name = d.properties.NAME;
+		let sov = d.properties.SOVEREIGNT;
+		if (d3.event.ctrlKey) {
+			if (d.properties.VALUE<=0)
+				d.properties.VALUE = 0
+			else
+				 d.properties.VALUE --;
+		}
+		else
+			d.properties.VALUE++;
+		
 		runMapAndTable(d);
 	});
+
+	 function runMapAndTable(d){
+		d3.selectAll("path")
+		.sort( descending );
+		constructTable(d);
+		updateLegendText();
+		reColorSovs();
+	};
+
+	
+
+	// function getSov(sov){
+	// 	return properties.NAME === sov && properties.SOVEREIGNT === sov;
+	// }
 	
 	$("input#userFile").change(function(event){
-		var csvFile = event.target.files[0];
-		var reader = new FileReader();
+		let csvFile = event.target.files[0];
+		let reader = new FileReader();
 		reader.readAsText(csvFile);
 		reader.onloadend = function(event) {
 			csvData = reader.result;
-			var rows = csvData.split(/\r?\n|\r/);
-			unit = rows[0].split(",")[1];
+			let rows = csvData.split(/\r?\n|\r/);
+			let headers = rows[0].split(",").splice(1);
+			let radiosDiv = $(".radiosDiv").empty(); //empty allows to remove old radioButtons in the case of a new file is entered
+			headers.forEach( (header) => {	
+				radiosDiv.append("<input type='radio' name=userDefinedLegend value='" + header +"'>" + header);
+			});
+			
 
-			for (var i=1; i<rows.length;i++){
-				var row = rows[i].split(",");
-				if (row.length ==2 && row[0] !== "" && row[1] !== ""){
-					let name = row[0];
-					let value = parseInt(row[1]);
-
-					let correspondingPath = $("[name=\""+name+"\"");
-					if (correspondingPath.length !== 0){
-						let sov = correspondingPath.attr("sov");
-						if (oStats[sov] === undefined)
-							oStats[sov] = {};
-						oStats[sov][name] = value;
-						oStats[sov]["sovTotal"] === undefined? oStats[sov]["sovTotal"]=value : oStats[sov]["sovTotal"]+=value;
-					}
-				}
-			}
+			
 		}
 		$("#toto").on("click", () => runMapAndTable());
 	});
 
 	
 	
-	initiateOrBindSliderColors("sov");
-	bindDomListeners(oStats);
+	initiateOrBindSliderColors("noData");
+	bindDomListeners();
 
 	function refreshTooltipContent(d){
 		let tooltipContent = d.properties.NAME;
-		let tooltipĈontentUnderFlag = "";
+		let tooltipContentUnderFlag = "";
 		let flagClass = "center-block flag flag-" + d.properties.ISO_A2;
 		flagClass = flagClass.toLowerCase();
 		tooltipContent += "</br><img src='data/blank.gif' class='" +flagClass + "' alt='No image was loaded'/></div></br>";
 		if (Object.keys(oStats).includes(d.properties.SOVEREIGNT)){
-			tooltipĈontentUnderFlag += "<p>	"+unit+" :</br>"
+			tooltipContentUnderFlag += "<p>	"+unit+" :</br>"
 			if (oStats[d.properties.SOVEREIGNT][d.properties.NAME] !== undefined)
-				tooltipĈontentUnderFlag +=  oStats[d.properties.SOVEREIGNT][d.properties.NAME];
+				tooltipContentUnderFlag +=  oStats[d.properties.SOVEREIGNT][d.properties.NAME];
 			else
-			tooltipĈontentUnderFlag +=  0;
+			tooltipContentUnderFlag +=  0;
 			if (d.properties.SOVEREIGNT !== d.properties.NAME){
 				tooltipContent += " (" + d.properties.SOVEREIGNT + ")";
 				if (oStats[d.properties.SOVEREIGNT][d.properties.SOVEREIGNT] !== undefined)
-					tooltipĈontentUnderFlag += " (" +oStats[d.properties.SOVEREIGNT][d.properties.SOVEREIGNT] +")";
+					tooltipContentUnderFlag += " (" +oStats[d.properties.SOVEREIGNT][d.properties.SOVEREIGNT] +")";
 				else{
-					tooltipĈontentUnderFlag += "(0)";
+					tooltipContentUnderFlag += "(0)";
 				}
 			}
 		}
 		else
-		tooltipĈontentUnderFlag += "</br><p>	Aucune donnée disponible</p>";
-		tooltipContent += tooltipĈontentUnderFlag += "</p>";
+		tooltipContentUnderFlag += "</br><p>	Aucune donnée disponible</p>";
+		tooltipContent += tooltipContentUnderFlag += "</p>";
 		tooltip.html(tooltipContent);
 	}
     
-    function constructTable(oStats) {
+    function constructTable(d) {
 		if ($('p#noTable').length !== 0) {
 			$('p#noTable').remove();
 			$("button#tableColored").removeAttr("hidden");
 		}
-	//Destroy the previous table before recreating a new one
-	$("tr:not(tr:first-child),td").remove();
-	var sov = Object.keys(oStats);
-		var isFirstClick = ($("th").length === 0 );
+		//Destroy the previous table before recreating a new one
+		$("tr:not(tr:first-child),td").remove();
+		let isFirstClick = ($("th").length === 0 );
 		if (isFirstClick) {
-		    var thSov = "<th>Souveraineté:</th>";
-		    var thName = "<th>Nom:</th>";
-		    var thNumber = "<th>" + unit +":</th>";
+		    let thSov = "<th>Souveraineté:</th>";
+		    let thName = "<th>Nom:</th>";
+		    let thNumber = "<th>" + unit +":</th>";
 		    $("table").append("<thead><tr>" + thSov + thName + thNumber + "</tr></thead><tbody></tbody>");
 		}
-		//sorting sovTotals
-		var sovTotalsOrdered = [];
-		for (var sov in oStats){
-			sovTotalsOrdered.push(oStats[sov]["sovTotal"]);
-		}
-		//TODO: Currently, when several names of same sov catches up another sov, it is not stable if it is written before or after this other one. 
-		//So, it may be useful to set a rule for which one should be written first in evenly cases.
-		sovTotalsOrdered.sort();
-		//sorting sov:
-		var sovOrdered = Object.keys(oStats);
-		sovOrdered.sort(function(a,b){
-			return oStats[b]["sovTotal"]-oStats[a]["sovTotal"];
-		})
-		
-		var nameSorted;
-		for (var i=0; i<sovOrdered.length; i++){
-			nameSorted = Object.keys(oStats[sovOrdered[i]]);
-		    nameSorted.splice(nameSorted.indexOf("sovTotal"),1)
-			nameSorted.sort(function(a,b){
-				return oStats[sovOrdered[i]][b] - oStats[sovOrdered[i]][a];
-			});
-		    var isSovSpanned = false;
-		    for (var j=0; j<nameSorted.length; j++){
-				if (nameSorted.length > 1 && j===0){
-					var tdSov = constructTableTag("td",sovOrdered[i],nameSorted[j], sovOrdered[i], nameSorted.length);
-			    var tdSovTotal = constructTableTag("td", sovOrdered[i],nameSorted[j], oStats[sovOrdered[i]]["sovTotal"], nameSorted.length);
-			    isSovSpanned = true;
-			}
-			else if (!isSovSpanned){
-			    var tdSov = constructTableTag("td",sovOrdered[i],nameSorted[j], sovOrdered[i]);
-			    var tdSovTotal ="";
-			}
-			else if (isSovSpanned){
-			    var tdSov = "";
-			    var tdSovTotal ="";
-			}
-			var tdName = constructTableTag("td",sovOrdered[i],nameSorted[j], nameSorted[j]);
-			var tdNameCounter = constructTableTag("td",sovOrdered[i],nameSorted[j], oStats[sovOrdered[i]][nameSorted[j]]);
-			$("table").append("<tr>"+tdSov+tdName+tdNameCounter+tdSovTotal+"</tr>");
-		    }
-		}
-    }
+
+	let sovWithData = d3.selectAll("path.sov")
+						.filter( (data) => parseInt(data.properties.VALUE) > 0 )
+						.attr("class","sov"); //remove the "noData" class
+	let valuesOnly = sovWithData.data().map( (data => data.properties.VALUE) );
+	let quartileInf = d3.quantile(valuesOnly, 0.75);
+	let median = d3.quantile(valuesOnly, 0.5);
+	let quartileSup = d3.quantile(valuesOnly, 0.25);
+	let TODO = sovWithData.data(); //the TODO is to remove it
+	console.log("quartileSup = " + quartileSup + " median =" + median +  " quartilInf = " + quartileInf)
+
+		let tbody = d3.select("tbody");
+		tbody.selectAll("tr").data(sovWithData.data()).enter().append("tr");
+			let tr = d3.select("tbody").selectAll("tr");
+			tr.append("td")
+			.text( function(d) { 
+				return d.properties.SOVEREIGNT})
+			tr.append("td")
+				.text( function(d) { return d.properties.NAME})
+			tr.append("td")
+				.text( function(d) { return d.properties.VALUE});
+		colorTable();
+	}
 	
-	
-    function updateStats(d, oStats, opt){
-		let sov = d.properties.SOVEREIGNT;
-		let name = d.properties.NAME;
-		if (sov in oStats === false){
-			oStats[sov] = {"sovTotal":0 };//incremented if needed at the end of the function
-			oStats[sov][name] = 0;
-			}
-		if (name in oStats[sov] == false)
-			oStats[sov][name] = 0;
-		
-		if (opt["decrement"]){
-			oStats[sov]["sovTotal"]--;
-			oStats[sov][name]--;
-			if (oStats[sov]["sovTotal"] <= 0)
-				delete oStats[sov]
-			else if (oStats[sov][name] <= 0)
-				delete oStats[sov][name];
+	function colorTable(){
+		let mustColorTable = $("#tableColored").attr("class").includes("btn-default");
+		if (mustColorTable){
+
+			let distribution = getMedianAndQuartiles();
+			let quartileSup = distribution["quartileSup"];
+			let median = distribution["median"];
+			let quartileInf = distribution["quartileInf"];
+			
+			d3.select("tbody").selectAll("tr").attr( "class",
+							function(d) {
+								if (d.properties.VALUE >= quartileSup){
+									return "legendRect0" }
+								else if (d.properties.VALUE >= median)
+									return "legendRect1";
+								else if (d.properties.VALUE >= quartileInf)
+									return "legendRect2";
+								else if (d.properties.VALUE >= 0)
+									return "legendRect3";
+					});
+			reColorSovs(); // Unsure why, but without it, countries with data loses their classes
 		}
 		else{
-			oStats[sov]["sovTotal"]++;
-			oStats[sov][name]++;
+			d3.selectAll("tr").attr("class", "");
 		}
-		return oStats;
 	}
+	
     
     function updateStatsFromFile(oStats){
 		let sov = d.properties.SOVEREIGNT;
 		let name = d.properties.NAME;
 	}
 
-    function constructTableTag(tagType, clickedSov,clickedName, content, optionRowSpan){
+    function constructTableTag(tag, clickedSov,clickedName, val, optionRowSpan){
 	if (optionRowSpan)
-	    return "<"+tagType+" data-sov='" + clickedSov + "' data-name='" + clickedName + "' rowspan='"+optionRowSpan+"'>" + content + "</"+tagType+">";
+		return `<${tag}>${clickedSov}</${tag}><${tag}>${clickedName}</${tag}><${tag}>${val}</${tag}>`
 	else
-	    return "<"+tagType+" data-sov='" + clickedSov + "' data-name='" + clickedName + "'>" + content + "</"+tagType+">";
-	
-    }
-    
-    function colorTable(d,oStats){
-	//
-    }
+		return `<${tag}>${clickedSov}</${tag}><${tag}>${clickedName}</${tag}><${tag}>${val}</${tag}>`
+}
     
     function initiateOrBindSliderColors(classElementToBind){
 		//I had problems when an element with several classes bound to colors. Thus only the last one is used for binding.
@@ -300,127 +286,111 @@ function drawMap(parsedJson){
 		} )
 	}
 	
-	function reColorSovs(oStats, opt){
-		var pattern = /(legendRect[0-3])/g; // used later to remove legend classes previously defined.
-		$(".sov").removeClass($(".sov").attr("class").match(pattern));
-		$(".sov").css("fill",$(".sov").css("fill"));
-		// hide legends and remove colors from sov if the user has completely emptied the object 
-		if (Object.keys(oStats).length === 0 ){
-			$("g.legend").hide();
-			return;
-		}
+	function reColorSovs(){
 
 		$("g.legend").show();
-		var distribution = getMedianAndQuartiles(oStats);
-		var max = distribution[0];
-		var quartileSup = distribution[1];
-		var median = distribution[2];
-		var quartileInf = distribution[3];
-		var min = distribution[4];
+		let distribution = getMedianAndQuartiles();
+		let max = distribution["max"];
+		let quartileSup = distribution["quartileSup"];
+		let median = distribution["median"];
+		let quartileInf = distribution["quartileInf"];
+		let min = distribution["min"];
 
-		$('.legendText0').text("De " + max + " (max) à " + quartileSup + "(quartile supérieur)");		
-		$('.legendText1').text("De " + quartileSup + " (exclus) à " + median + "(médiane)");
-		$('.legendText2').text("De " + median + " (exclus) à " + quartileInf + "(quartile inférieur)");		
-		$('.legendText3').text("De " + quartileInf + "(exclus) à " + min + " (min)");
-
-		Object.keys(oStats).forEach(function(sov){
-		var processingSov = oStats[sov]["sovTotal"];
-
-		var pathSov = $("path[id^='sov"+sov+"']");
-		
-		var tdSov = $("td[data-sov='"+sov+"']");
-		if (opt["tableColored"] === false){
-			tdSov.removeClass(pathSov.attr("class").match(pattern));
-			tdSov.css("background-color","");
-		}
-
-		if (processingSov >= quartileSup ){
-			pathSov.addClass("legendRect0");
-			pathSov.css("fill",$("rect.legendRect0").css("fill"));
-			if (opt["tableColored"] === true)
-				tdSov.addClass("legendRect0");
-		}
-		else if (processingSov >= median ){
-			pathSov.addClass("legendRect1");
-			pathSov.css("fill",$("rect.legendRect1").css("fill"));
-			if (opt["tableColored"] === true)
-				tdSov.addClass("legendRect1");
-		}
-		else if (processingSov >= quartileInf ){
-			pathSov.addClass("legendRect2");
-			pathSov.css("fill",$("rect.legendRect2").css("fill"));
-			if (opt["tableColored"] === true)
-				tdSov.addClass("legendRect2");
+		let sovWithData = d3.selectAll("path.sov")
+						.filter( (data) => parseInt(data.properties.VALUE) > 0 );
+		if (!isNaN(median)){
+			sovWithData.attr("class", function(d){
+					if (d.properties.VALUE >= quartileSup)
+						return "sov legendRect0";
+					else if (d.properties.VALUE >= median)
+						return "sov legendRect1";
+					else if (d.properties.VALUE >= quartileInf)
+						return "sov legendRect2";
+					else if (d.properties.VALUE < quartileInf)
+						return "sov legendRect3";
+				});
+				
 		}
 		else{
-			pathSov.addClass("legendRect3");
-			pathSov.css("fill",$("rect.legendRect3").css("fill"));
-			if (opt["tableColored"] === true)
-				tdSov.addClass("legendRect3");
+			d3.selectAll(".sov").attr("class", "sov noData"); //for some reasons, it does not work
 		}
-		if (opt["tableColored"] === true)
-			tdSov.css("background-color",pathSov.css("fill"));
 
-		$("g.legend").each(function(i,v){
-			positionTextLegend(v);
-			});
-		})
+		// uncolor countries which had data
+		d3.selectAll("path.sov")
+			.filter( (data) => data.properties["VALUE"] === 0 )
+			.attr("class", "sov noData");
 	}
 		
-		function drawLegend(oStats){
+		function drawLegend(){
 			if ($(".legend").length !== 0){
 				return; //avoid resetting the legend colors after a click on a country
 			}
+			let distrib = getMedianAndQuartiles();
 			var oConfig = getConfig();
 			var width = oConfig["width"];
 			var height = oConfig["height"];
-		var spacing = oConfig["spacing"];//to separate g legends (1 g = 1 rect + 1 text)
-		var legendSpacing = oConfig["legendSpacing"];//to separate legend texts from their rect
-		var legendData = [];// [[x,y], ...] of each legend rect
-		var y = 0;
-		if (oConfig["horizontal"] === "left"){
+			var spacing = oConfig["spacing"];//to separate g legends (1 g = 1 rect + 1 text)
+			var legendSpacing = oConfig["legendSpacing"];//to separate legend texts from their rect
+			var legendData = [];// [[x,y], ...] of each legend rect
+			var y = 0;
 			var x = 0;
-		}
-		else{
-			var x = $("#map").width() - width;
-		}
-		for (var i=0;i<4;i++){
-			var coord = [x,y];
-			legendData.push(coord);
-			y += spacing;
-		}
-		var svg = d3.select("svg");
-		svg.selectAll(".legend").remove();//before drawing a new legend, remove the previous one
-		var legend = svg.selectAll(".legend")
-			.data(legendData)
-			.enter()
-			.append("g")
-			.attr("class", (d,i)=>"legend legend"+i)
-			.attr("transform", function(d){
-				return "translate("+d[0]+","+d[1]+")";
-			})
-			.call(d3.drag()
-				.on("start", dragstarted)
-				.on("drag", dragged)
-				.on("end", dragended));
-			var legendRect = legend.append("rect")
-			.attr("width",width)
-			.attr("height",height)
-			.attr("class", (d,i)=>"legend" + i +" legendRect"+i)
-			.on("click", function(){
-				initiateOrBindSliderColors(this.getAttribute("class"));
-			});
-			legend.append("text")
-			.text("TODO: adapt the legend here")
-			.attr("class", (d,i)=>"legend" + i +" legendText"+i)
-			.attr("x",function(){
-				if (getConfig()["horizontal"] ==="right"){
-					var legendWidth=this.getBBox().width;
-					return -legendWidth-legendSpacing;
-				}
-				return width + legendSpacing;
-			})
-			.attr("y",height-5);
+			// var x = $("#map").width() - width; // if I want rectangles at the right
+			for (var i=0;i<4;i++){
+				var coord = [x,y];
+				legendData.push(coord);
+				y += spacing;
+			}
+			var svg = d3.select("svg");
+			svg.selectAll(".legend").remove();//before drawing a new legend, remove the previous one
+			var legend = svg.selectAll(".legend")
+				.data(legendData)
+				.enter()
+				.append("g")
+				.attr("class", (d,i)=>"legend legend"+i)
+				.attr("transform", function(d){
+					return "translate("+d[0]+","+d[1]+")";
+				})
+				.call(d3.drag()
+					.on("start", dragstarted)
+					.on("drag", dragged)
+					.on("end", dragended));
+				var legendRect = legend.append("rect")
+				.attr("width",width)
+				.attr("height",height)
+				.attr("class", (d,i)=>"legend" + i +" legendRect"+i)
+				.on("click", function(){
+					initiateOrBindSliderColors(this.getAttribute("class"));
+				});
+				legend.append("text")
+				.text( (d,i) => {
+					switch (i){
+						case 0: return "de " + distrib["max"] + "(max) à " + distrib["quartileSup"] +"(quartile sup)" ; break;
+						case 1: return "de " + distrib["max"] + "(quartileSup) à " + distrib["median"] +"(median)"; break;
+						case 2: return "de " + distrib["max"] + "(median) à " + distrib["quartileInf"] +"(quartile inf)"; break;
+						case 3: return "de " + distrib["quartileInf"] + "(quartileInf) à " + distrib["min"] +"(min)"; break;
+					}
+				} )
+				.attr("class", (d,i)=>"legend" + i +" legendText"+i)
+				.attr("x",function(){
+					if (getConfig()["horizontal"] ==="right"){
+						var legendWidth=this.getBBox().width;
+						return -legendWidth-legendSpacing;
+					}
+					return width + legendSpacing;
+				})
+				.attr("y",height-5);
+	}
+	
+	function updateLegendText(){
+		distrib = getMedianAndQuartiles();
+		svg.selectAll("text").text( (d,i) => {
+			switch (i){
+				case 0: return "de " + distrib["max"] + "(max) à " + distrib["quartileSup"] +"(quartile sup)" ; break;
+				case 1: return "de " + distrib["max"] + "(quartileSup) à " + distrib["median"] +"(median)"; break;
+				case 2: return "de " + distrib["max"] + "(median) à " + distrib["quartileInf"] +"(quartile inf)"; break;
+				case 3: return "de " + distrib["quartileInf"] + "(quartileInf) à " + distrib["min"] +"(min)"; break;
+			}
+		});
 	}
 
 	function positionTextLegend(gLegendNode){
@@ -454,28 +424,59 @@ function drawMap(parsedJson){
 	function dragstarted(d) {
 		d3.select(this).classed("active", true);
 	  }
-	  
+
 	  function dragged(d) {
 		  positionTextLegend(this);
 		  d3.select(this).attr("transform","translate("+d3.event.x+","+d3.event.y+")");
 	  }
-	  
+
 	  function dragended(d) {
 		d3.select(this).classed("active", false);
 	  }
 
 	function bindDomListeners(oStats){
+		$(".radiosDiv").change( () => {
+			unit = $(".radiosDiv input:checked").val();
+			console.log("unit is " + unit);
+			let csvFile = document.getElementById("userFile").files[0];
+			if (csvFile){
+				console.log("unit is " + unit);
+				let reader = new FileReader();
+				reader.readAsText(csvFile);
+				reader.onloadend = function(event) {
+					let csvData = reader.result;
+					let rows = csvData.split(/\r?\n|\r/);
+					let headers = rows[0].split(",");
+					let indexOfUnit = headers.indexOf(unit);
+
+					for (let i = 1; i<rows.length; i++){
+						let row = rows[i];
+						row = row.split(",");
+						let countryName = row[0];
+						let value = parseInt(row[indexOfUnit]);
+						let d3Country = d3.selectAll(".sov")
+						.filter( (d) => d.properties.NAME === countryName );
+						if (!d3Country.empty()){
+							let countryData = 	d3Country.data();
+							countryData[0].properties.VALUE = value;
+							d3Country.data( countryData[0] );
+						}
+					}
+				}
+			}
+
+		});
+
 		$("#tableColored").click(function(){
 			if ($(this).attr("class") === "btn btn-default"){
 				$(this).attr("class", "btn btn-info");
 				$(this).text("Colorer le tableau");
-				reColorSovs(oStats, {"tableColored": false});
 			}
 			else{
 				$(this).attr("class", "btn btn-default");
 				$(this).text("Décolorer le tableau");
-				reColorSovs(oStats, {"tableColored": true});
 			}
+			colorTable();
 		});
 
 		$(function(){
@@ -500,82 +501,29 @@ function drawMap(parsedJson){
 	  }
 
 	  function getMedianAndQuartiles(oStats){
-		var quartileInf;
-		var quartileSup;
-		var median;
-		var sovTotals = [];
-		var sovs = Object.keys(oStats)
-		for (var i =0; i<sovs.length; i++){
-			sovTotals.push(oStats[sovs[i]]["sovTotal"]);
-			if (isNaN(oStats[sovs[i]]["sovTotal"])) debugger;
-		};
-		sovTotals.sort(function(a,b){
-			return a-b;
-		  });
-		  median = getMedian(sovTotals);
-		  //Firstly, determining very specific cases such as 0, 1 or 2 data
-		  if (sovTotals.length === 0) return;
-		  if (sovTotals.length === 1){
-			quartileInf = sovTotals[0], quartileSup = sovTotals[0];
-		  }
-		  else if (sovTotals.length === 2){
-			quartileInf = sovTotals[0], quartileSup = sovTotals[1]
-		  }
-		  //then we should get normal values from a more reasonable distribution
-		  else{
-			  lowerHalf = [];
-			  upperHalf = [];
-			  var distLen = sovTotals.length;
-			  var halfFloor = Math.floor(distLen/2);
-			  var halfCeiling = halfFloor+1;
-			  if (distLen %2===0){
-				  for (var i=0 ; i<distLen/2 ; i++){
-					  lowerHalf.push(sovTotals[i]);
-					}
-					for (var i=distLen/2 ; i<distLen ; i++){
-						upperHalf.push(sovTotals[i]);
-					}
-				}
-				else{
-					for (var i=0; i<halfFloor; i++){
-						lowerHalf.push(sovTotals[i]);
-					}
-					for (var i=halfCeiling; i<distLen; i++){
-						upperHalf.push(sovTotals[i]);
-					}
-				}
-				var quartileInf = getMedian(lowerHalf);
-				var quartileSup = getMedian(upperHalf);
-			}
-				return [Math.max.apply(Math,sovTotals), quartileSup, median, quartileInf, Math.min.apply(Math,sovTotals)];
-			}
-			
-		function getMedian(sovTotalsArray){
-			var arrayLength = sovTotalsArray.length;
-			sovTotalsArray.sort(function(a,b){
-				return a-b;
-			  });
-			if(arrayLength ===0) return 1;
-			else if(arrayLength ===1) return sovTotalsArray[0];
-			var half = arrayLength/2;
-			if (arrayLength %2 !==0){
-				var median = sovTotalsArray[(arrayLength - 1) / 2];
-			}
-			else{
-				var median = (sovTotalsArray[arrayLength / 2 - 1] + sovTotalsArray[arrayLength / 2]) / 2;
-			}
-			return median;
-		}
+		let sovWithData = d3.selectAll("path.sov")
+		.filter( (data) => parseInt(data.properties.VALUE) > 0 )
+		.attr("class","sov"); //remove the "noData" class
+		let valuesOnly = sovWithData.data().map( (data => data.properties.VALUE) );
+		let max = d3.max(valuesOnly);
+		let quartileSup = d3.quantile(valuesOnly, 0.25);
+		let median = d3.quantile(valuesOnly, 0.5);
+		let quartileInf = d3.quantile(valuesOnly, 0.75);
+		let min = d3.min(valuesOnly);
+		return {"max" : max === undefined ? 0 : max,
+				"quartileSup" : quartileSup === undefined ? 0 : quartileSup,
+				"median" : median === undefined ? 0 : median,
+				"quartileInf" : quartileInf === undefined ? 0 : quartileInf,
+				"min" : min === undefined ? 0 : min};
+	  }
 }
 
 function getConfig(){
 	//TODO: get values in a form
 	let tableColored = ($("#tableColored").attr("class") === "btn btn-default" ? true : false);  // default=colored table
-    let sHorizontal = $('div#horizontal input:checked').val();
 	let sLegendTextDir = $('div#legendTextDir input:checked').val();
     return {"spacing" : 25,
 			"legendSpacing" : 5,
-			"horizontal" : sHorizontal,
 			"sLegendTextDir" : sLegendTextDir,
 			"width" : 20,
 			"height" : 20,

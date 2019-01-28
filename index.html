@@ -1,4 +1,6 @@
+
 <!DOCTYPE html>
+
 <html lang="en">
     <head>
         <meta charset="utf-8">
@@ -14,7 +16,7 @@
     </head>
 
     <body>
-        <div class = "custom-container container"></body>
+        <div class = "container-fluid"></body>
             <header class = "page-header">
                 <h1>Positionneur d'évènement</h1>
             </header>
@@ -28,13 +30,16 @@
                     </div>
             </div>
             <div class="row">
-                <div class = "col-md-3">
+                <div id="customDiv" class = "col-md-3">
                     
                             <legend> Personnalisation de la carte</legend>
                             <div>
+                                <input type="checkbox" id="indep" value="nameIndependant">Considérer les nations constitutives indépendamment</input>
                                     <p>Entrez votre fichier de données. Il doit être au format csv avec deux colonnes et un en-tête. Un extrait du fichier d'exemple est disponible <a href="#" id="csvExample" data-toggle="popover" data-html="true" data-trigger="hover" data-placement="top" title="exemple de csv avec en-tête" data-content='Country Name,"Population, total(2017)"<br/>Germany,82695000<br/>United Kingdom,66022273'>ici</a></p>
                                         <input id="userFile" type="file" name="data" accept="csv">
                                         <button id="toto" class="btn-info">ici</button>
+                                    <div class="radiosDiv">
+                                    </div>
                                     <p>Utilisez les niveaux de rouge, vert et bleu ci-dessous pour définir les couleurs. Cliquez sur un élément de la carte pour y lier les couleurs.</p>
                                     <div id="red"></div>
                                     <div id="green"></div>
@@ -42,8 +47,8 @@
                                 <div id="test"></div>
                                 <label for="legendTextDir">Positionner le texte des légendes (dans la limite de l'espace disponible):</label>
                                 <div id="legendTextDir">
-                                    <input type="radio" name="legendTextDir" value="right" checked="checked"> A droite
-                                    <input type="radio" name="legendTextDir" value="left"> A gauche
+                                    <input type="radio" name="legendTextDir" value="right"> A droite
+                                    <input type="radio" name="legendTextDir" value="left" checked="checked"> A gauche
                                 </div>
                             </div>
                     </div>
@@ -59,7 +64,8 @@
             </div>
         </div>
         <!-- TODO: get a fallback for these CDNs  -->
-        <script src="https://d3js.org/d3.v5.min.js"></script>
+        <script type="text/javascript"
+                src="https://d3js.org/d3.v5.min.js"></script>
         <script src="https://code.jquery.com/jquery-3.3.1.min.js"
 			    integrity="sha256-FgpCb/KJQlLNfOu91ta32o/NMZxltwRo8QtmkMRdAu8="
 			    crossorigin="anonymous"></script>
@@ -74,6 +80,6 @@
                 src="https://code.jquery.com/ui/1.12.1/jquery-ui.min.js"
                 integrity="sha256-VazP97ZCwtekAsvgPBSUwPFKdrwD3unUfSGVYrahUqU="
                 crossorigin="anonymous"></script>
-        <script src = "./eventPositionner.js"></script>
+        <script type="text/javascript" src = "./eventPositionner.js"></script>
     </body>
 </html>

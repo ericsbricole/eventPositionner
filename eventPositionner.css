@@ -13,7 +13,7 @@
         min-height: 100%;
     }
 
-    .sov {
+    .noData {
         fill: rgb(0,255,0);
         stroke: #2A2C39;
         stroke-width: 0.3;
@@ -77,6 +77,22 @@
 
     .legendRect3{
         fill: rgb(130,240,0);
+    }
+
+    .legendRect0 td{
+        background-color: rgb(255,0,0);
+    }
+
+    .legendRect1 td{
+        background-color: rgb(255,165,0);
+    }
+
+    .legendRect2 td{
+        background-color: rgb(215,210,0);
+    }
+
+    .legendRect3 td{
+        background-color: rgb(130,240,0);
     }
 
     .active{
