@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 
 <html lang="en">
@@ -18,43 +17,56 @@
     <body>
         <div class = "container-fluid"></body>
             <header class = "page-header">
-                <h1>Positionneur d'évènement</h1>
+                <h1 class="text-center">eventPositionner</h1>
             </header>
-            <div class = "row">
-                    <div class="col-md-12" align="center">
-                        <p>Ce programme écrit en JavaScript avec les bibliothèques D3.js, jQuery et jQueryUi vous permet de cliquer sur une carte du monde pour générer une légende automatique.
-                            Elle séparera les pays cliqués en 4 groupes égaux, calculés avec les <a href="#" data-toggle="popover" data-trigger="hover" data-placement="top" title="Définition wikipédia:" data-content="En statistique descriptive, un quartile est chacune des trois valeurs qui divisent les données triées en quatre parts égales, de sorte que chaque partie représente 1/4 de l'échantillon de population.">quartiles</a>.
-                            Vous pouvez ainsi visualiser géographiquement ce que vous souhaitez.
-                            Un tableau sur la droite vous indiquera les valeurs numériques correspondant à vos clics, triés par ordre décroissant.</p>
-                        <p>Note: Ctrl + clic pour faire baisser la valeur d'un pays.</p>
-                    </div>
+            <br>
+            <div class = "row text-center">
+                <div class="offset-md-2 col-md-8 offset-md-2 text-justify" align="center">
+                    <p>Ce programme écrit en JavaScript avec les bibliothèques D3.js, jQuery et jQueryUi vous permet de rentrer un fichier de données et de les visualiser sur une mappemonde grâce à une légende automatique.
+                            Celle-ci séparera les pays cliqués en 4 groupes égaux, calculés avec les <a href="#" data-toggle="popover" data-trigger="hover" data-placement="top" title="Définition wikipédia:" data-content="En statistique descriptive, un quartile est chacune des trois valeurs qui divisent les données triées en quatre parts égales, de sorte que chaque partie représente 1/4 de l'échantillon de population.">quartiles</a>.
+                            Un tableau sur la droite vous indiquera les valeurs numériques correspondant à vos clics, triés par ordre décroissant.<br>
+                            Vous pouvez incrémenter ou décrémenter les valeurs d'un pays en cliquant dessus (Ctrl + click pour décrémenter), bien qu'il ne permette pas à ce jour de retélécharger le fichier modifié.
+                    <br>
+                    <br>
+                            Les drapeaux des pays ont été générés sur https://www.flag-sprites.com, avec les logos de GoSquared sous licence MIT. Cette méthode évite de faire une requête par drapeau.
+                            Les données géographiques de ce programme proviennent des fichiers du site Natural Earth. Ce programme peut être amené à changer pour des raisons d'optimisation, débugguage ou ajouts de fonctionnalités. 
+                    </p>
+                </div>
             </div>
+            <br>
             <div class="row">
                 <div id="customDiv" class = "col-md-3">
                     
-                            <legend> Personnalisation de la carte</legend>
-                            <div>
-                                <input type="checkbox" id="indep" value="nameIndependant">Considérer les nations constitutives indépendamment</input>
-                                    <p>Entrez votre fichier de données. Il doit être au format csv avec deux colonnes et un en-tête. Un extrait du fichier d'exemple est disponible <a href="#" id="csvExample" data-toggle="popover" data-html="true" data-trigger="hover" data-placement="top" title="exemple de csv avec en-tête" data-content='Country Name,"Population, total(2017)"<br/>Germany,82695000<br/>United Kingdom,66022273'>ici</a></p>
-                                        <input id="userFile" type="file" name="data" accept="csv">
-                                        <button id="toto" class="btn-info">ici</button>
-                                    <div class="radiosDiv">
-                                    </div>
-                                    <p>Utilisez les niveaux de rouge, vert et bleu ci-dessous pour définir les couleurs. Cliquez sur un élément de la carte pour y lier les couleurs.</p>
-                                    <div id="red"></div>
-                                    <div id="green"></div>
-                                    <div id="blue"></div>
-                                <div id="test"></div>
-                                <label for="legendTextDir">Positionner le texte des légendes (dans la limite de l'espace disponible):</label>
-                                <div id="legendTextDir">
-                                    <input type="radio" name="legendTextDir" value="right"> A droite
-                                    <input type="radio" name="legendTextDir" value="left" checked="checked"> A gauche
-                                </div>
-                            </div>
+                    <legend> Personnalisation de la carte</legend>
+                    <div class="text-center">
+                        <p class="text-justify">Entrez votre fichier de données. Il doit être au format csv avec autant de colonnes que vous souhaitez et un en-tête, indiquant en 1ère colonne le nom des pays (passez la souris sur les pays pour connaitre son format), les autres colonnes doivent indiquer le type de valeur, comme <a href="#" id="csvExample" data-toggle="popover" data-html="true" data-trigger="hover" data-placement="top" title="exemple de csv avec en-tête" data-content='<div>Country Name,"Population, total(2017)"<br>Germany,82695000<br>United Kingdom,66022273</div>'>ceci</a>. Vous pouvez télécharger <a href="data/Population.csv" >ici</a> un fichier exemple, issu de la World Bank Open Data mais modifié: j'ai supprimé certaines colonnes et lignes par souci de visibilité, et modifié certains noms de pays pour correspondre au format de mon programme.</p>
+                        <div class="custom-file">
+                            <input id="userFile" type="file" class="custom-file-input" name="data" accept="csv">
+                            <label id="userFileLabel" class="custom-file-label" for="data">Votre fichier csv</label>
+                        </div>
+                        <br>
+                        <br>
+                        <button id='userFileLoad' class='btn-info' hidden>Chargez les données</button>
+                        <br>
+                        <br>
+                        <div class="radiosDiv"></div>
+                        <br>
+                        <p>Utilisez les niveaux de rouge, vert et bleu ci-dessous pour définir les couleurs. Cliquez sur un carré de légende de la carte pour y lier les couleurs.</p>
+                        <div id="red"></div>
+                        <div id="green"></div>
+                        <div id="blue"></div>
+                        <div id="test"></div>
+                        <label for="legendTextDir">Positionner le texte des légendes (dans la limite de l'espace disponible):</label>
+                        <div id="legendTextDir">
+                            <input type="radio" name="legendTextDir" value="right"> A droite
+                            <input type="radio" name="legendTextDir" value="left" checked="checked"> A gauche
+                        </div>
                     </div>
+                </div>
                 <div class = "col-md-6 map-parent"></div>
                 <div class = "col-md-3">
                     <h2>Tableau de vos données</h2>
+                    <br>
                     <button hidden id='tableColored' class='btn btn-default'>Décolorer le tableau</button>
                     <p id="noTable">Cliquez sur la carte pour générer le tableau.</p>
                     <table class="table table-bordered table-striped">

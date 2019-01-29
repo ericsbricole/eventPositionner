@@ -4,13 +4,12 @@ function initiatePage(){
     
     //TODO: get these data from a configuration file
 	let geoJson = "data/medium_scale_cultural_countries.geojson";
-	// let geoJson = "http://localhost:8000/medium_scale_cultural_countries.geojson"; // TODO: remove the inappropriate one for "prod"
     let resultat = d3.json(geoJson)
 	.then(function(parsedJson) {
 		drawMap(parsedJson);		
 	    })
 	.catch(function(error) {
-		alert("erreur!!!!\n" + error);
+		alert("the following error occured:n" + error);
 	    }); 
     
 };
@@ -74,10 +73,10 @@ function drawMap(parsedJson){
 		.attr("name", (d) => d.properties.NAME)
     
     countries.on("mousemove", function(d){
-		let coordinates = d3.mouse(this);
-				refreshTooltipContent(d);
-				tooltip.style("left", d3.event.pageX-400)
-				.style("top", d3.event.pageY-210 + "px")				
+		d3.mouse(this);
+		refreshTooltipContent(d);
+		tooltip.style("left", d3.event.pageX-400 + "px")
+				.style("top", d3.event.pageY-250 + "px")				
 				.attr("width", 200)
 				.attr("height", 200)
 			tooltip.transition()
@@ -96,11 +95,9 @@ function drawMap(parsedJson){
 	})
 
 	var unit = "click"//by default, the app will count clicks on countries
-	var oStats = {};
 
 	countries.on("click", (d) => {
-		let name = d.properties.NAME;
-		let sov = d.properties.SOVEREIGNT;
+		refreshTooltipContent(d);
 		if (d3.event.ctrlKey) {
 			if (d.properties.VALUE<=0)
 				d.properties.VALUE = 0
@@ -129,21 +126,36 @@ function drawMap(parsedJson){
 	
 	$("input#userFile").change(function(event){
 		let csvFile = event.target.files[0];
-		let reader = new FileReader();
-		reader.readAsText(csvFile);
-		reader.onloadend = function(event) {
-			csvData = reader.result;
-			let rows = csvData.split(/\r?\n|\r/);
-			let headers = rows[0].split(",").splice(1);
-			let radiosDiv = $(".radiosDiv").empty(); //empty allows to remove old radioButtons in the case of a new file is entered
-			headers.forEach( (header) => {	
-				radiosDiv.append("<input type='radio' name=userDefinedLegend value='" + header +"'>" + header);
-			});
-			
-
-			
+		if (csvFile){
+			$("#userFileLabel").text(csvFile.name);
+			let reader = new FileReader();
+			reader.readAsText(csvFile);
+			reader.onloadend = function(event) {
+				csvData = reader.result;
+				let rows = csvData.split(/\r?\n|\r/);
+				let headers = rows[0].split(",").splice(1);
+				let radiosDiv = $(".radiosDiv").empty(); //empty allows to remove old radioButtons in the case of a new file is entered
+				radiosDiv.prepend("<span class='text-success'>Les données suivantes ont été trouvées dans votre fichier. Choisissez laquelle visualiser et cliquez ensuite sur le bouton Chargez les données.<br/>");
+				headers.forEach( (header) => {
+					radiosDiv.append("<div class='radio'> <label><input type='radio' name=userDefinedLegend value='" + header +"'>" + header +"</label>");
+				});
+				$("#userFileLoad").removeAttr("hidden");			
 		}
-		$("#toto").on("click", () => runMapAndTable());
+	}
+
+		
+		$("#userFileLoad").click( function() { 
+			if ( $(".radiosDiv input:checked").length >0 ){
+				$(".radiosDiv span").removeClass("text-danger");
+				runMapAndTable();
+			}
+			else{
+				$(".radiosDiv").addClass("alert alert-danger");
+				$(".radiosDiv span").addClass("text-danger")
+									.text("Choisissez une donnée à visualiser parmi les choix suivants.");
+			}
+		
+		});
 	});
 
 	
@@ -156,24 +168,16 @@ function drawMap(parsedJson){
 		let tooltipContentUnderFlag = "";
 		let flagClass = "center-block flag flag-" + d.properties.ISO_A2;
 		flagClass = flagClass.toLowerCase();
-		tooltipContent += "</br><img src='data/blank.gif' class='" +flagClass + "' alt='No image was loaded'/></div></br>";
-		if (Object.keys(oStats).includes(d.properties.SOVEREIGNT)){
-			tooltipContentUnderFlag += "<p>	"+unit+" :</br>"
-			if (oStats[d.properties.SOVEREIGNT][d.properties.NAME] !== undefined)
-				tooltipContentUnderFlag +=  oStats[d.properties.SOVEREIGNT][d.properties.NAME];
-			else
-			tooltipContentUnderFlag +=  0;
-			if (d.properties.SOVEREIGNT !== d.properties.NAME){
-				tooltipContent += " (" + d.properties.SOVEREIGNT + ")";
-				if (oStats[d.properties.SOVEREIGNT][d.properties.SOVEREIGNT] !== undefined)
-					tooltipContentUnderFlag += " (" +oStats[d.properties.SOVEREIGNT][d.properties.SOVEREIGNT] +")";
-				else{
-					tooltipContentUnderFlag += "(0)";
-				}
-			}
+		tooltipContent += "</br><img src='data/blank.gif' class='" +flagClass + "' alt='No image to load'/></div></br>";
+		
+		if( d.properties.VALUE !== 0){
+			tooltipContentUnderFlag += "<p>	"+unit+" :</br>";
+			tooltipContentUnderFlag +=  d.properties.VALUE;
 		}
-		else
-		tooltipContentUnderFlag += "</br><p>	Aucune donnée disponible</p>";
+		else{
+			tooltipContentUnderFlag += "</br><p>	Aucune donnée disponible</p>";
+		}
+			
 		tooltipContent += tooltipContentUnderFlag += "</p>";
 		tooltip.html(tooltipContent);
 	}
@@ -200,8 +204,6 @@ function drawMap(parsedJson){
 	let quartileInf = d3.quantile(valuesOnly, 0.75);
 	let median = d3.quantile(valuesOnly, 0.5);
 	let quartileSup = d3.quantile(valuesOnly, 0.25);
-	let TODO = sovWithData.data(); //the TODO is to remove it
-	console.log("quartileSup = " + quartileSup + " median =" + median +  " quartilInf = " + quartileInf)
 
 		let tbody = d3.select("tbody");
 		tbody.selectAll("tr").data(sovWithData.data()).enter().append("tr");
@@ -242,19 +244,6 @@ function drawMap(parsedJson){
 			d3.selectAll("tr").attr("class", "");
 		}
 	}
-	
-    
-    function updateStatsFromFile(oStats){
-		let sov = d.properties.SOVEREIGNT;
-		let name = d.properties.NAME;
-	}
-
-    function constructTableTag(tag, clickedSov,clickedName, val, optionRowSpan){
-	if (optionRowSpan)
-		return `<${tag}>${clickedSov}</${tag}><${tag}>${clickedName}</${tag}><${tag}>${val}</${tag}>`
-	else
-		return `<${tag}>${clickedSov}</${tag}><${tag}>${clickedName}</${tag}><${tag}>${val}</${tag}>`
-}
     
     function initiateOrBindSliderColors(classElementToBind){
 		//I had problems when an element with several classes bound to colors. Thus only the last one is used for binding.
@@ -290,11 +279,9 @@ function drawMap(parsedJson){
 
 		$("g.legend").show();
 		let distribution = getMedianAndQuartiles();
-		let max = distribution["max"];
 		let quartileSup = distribution["quartileSup"];
 		let median = distribution["median"];
 		let quartileInf = distribution["quartileInf"];
-		let min = distribution["min"];
 
 		let sovWithData = d3.selectAll("path.sov")
 						.filter( (data) => parseInt(data.properties.VALUE) > 0 );
@@ -309,7 +296,6 @@ function drawMap(parsedJson){
 					else if (d.properties.VALUE < quartileInf)
 						return "sov legendRect3";
 				});
-				
 		}
 		else{
 			d3.selectAll(".sov").attr("class", "sov noData"); //for some reasons, it does not work
@@ -354,7 +340,7 @@ function drawMap(parsedJson){
 					.on("start", dragstarted)
 					.on("drag", dragged)
 					.on("end", dragended));
-				var legendRect = legend.append("rect")
+				legend.append("rect")
 				.attr("width",width)
 				.attr("height",height)
 				.attr("class", (d,i)=>"legend" + i +" legendRect"+i)
@@ -405,7 +391,6 @@ function drawMap(parsedJson){
 		//I used to get x with d3.event.x but I also have to reposition legend text from radio button, thus the 3 following lines.
 		var currentTransform = gLegendNode.getAttribute("transform").split(",");
 		var currentX = parseInt(currentTransform[0].split('(')[1]);
-		//var currentY = currentTransform[1].split(')')[0];//TODO: use it to offer to reposition the text in up and down positions
 		var isTooCloseFromLeft = (currentX - legendWidth - legendSpacing)<0;
 		var isTooCloseFromRight = (currentX + legendWidth + rectWidth + legendSpacing)>mapWidth;
 		if (isTooCloseFromLeft){
@@ -434,13 +419,14 @@ function drawMap(parsedJson){
 		d3.select(this).classed("active", false);
 	  }
 
-	function bindDomListeners(oStats){
+	function bindDomListeners(){
+
 		$(".radiosDiv").change( () => {
+			$(".radiosDiv").removeClass("alert alert-danger");
+			$(".radiosDiv span").removeClass("text-danger").addClass("text-success");
 			unit = $(".radiosDiv input:checked").val();
-			console.log("unit is " + unit);
 			let csvFile = document.getElementById("userFile").files[0];
 			if (csvFile){
-				console.log("unit is " + unit);
 				let reader = new FileReader();
 				reader.readAsText(csvFile);
 				reader.onloadend = function(event) {
@@ -448,6 +434,11 @@ function drawMap(parsedJson){
 					let rows = csvData.split(/\r?\n|\r/);
 					let headers = rows[0].split(",");
 					let indexOfUnit = headers.indexOf(unit);
+
+					//before setting values read on the csv, we have to reset the previouses ones at 0
+					let previousData = d3.selectAll(".sov").data();
+					previousData.forEach( (data) => data.properties.VALUE = 0 );
+					d3.selectAll(".sov").data(previousData)
 
 					for (let i = 1; i<rows.length; i++){
 						let row = rows[i];
@@ -464,7 +455,6 @@ function drawMap(parsedJson){
 					}
 				}
 			}
-
 		});
 
 		$("#tableColored").click(function(){
@@ -482,13 +472,6 @@ function drawMap(parsedJson){
 		$(function(){
 			$("[data-toggle=popover]").popover();
 		});
-
-		var inputLegendTextDirs = $("input[name='legendTextDir']")
-								.change(function(){
-									$("g.legend").each(function(i,v){
-										positionTextLegend(v);
-									});
-								});
 	}
 
 	function getRGB(str){
@@ -500,7 +483,7 @@ function drawMap(parsedJson){
 		} : {};
 	  }
 
-	  function getMedianAndQuartiles(oStats){
+	  function getMedianAndQuartiles(){
 		let sovWithData = d3.selectAll("path.sov")
 		.filter( (data) => parseInt(data.properties.VALUE) > 0 )
 		.attr("class","sov"); //remove the "noData" class
