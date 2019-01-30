@@ -76,7 +76,7 @@ function drawMap(parsedJson){
 		d3.mouse(this);
 		refreshTooltipContent(d);
 		tooltip.style("left", d3.event.pageX-400 + "px")
-				.style("top", d3.event.pageY-250 + "px")				
+				.style("top", d3.event.pageY-400 + "px")				
 				.attr("width", 200)
 				.attr("height", 200)
 			tooltip.transition()
